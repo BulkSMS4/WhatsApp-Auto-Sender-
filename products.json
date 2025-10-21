@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Vegan Protein Shake",
+    "description": "High-quality plant-based protein powder with 20g per serving.",
+    "price": "GHS 150",
+    "payment_link": "https://paystack.com/buy/vegan-shake"
+  },
+  {
+    "name": "Organic Soap",
+    "description": "Handmade coconut oil soap bar with aloe vera.",
+    "price": "GHS 30",
+    "payment_link": "https://flutterwave.com/pay/organicsoap"
+  }
+]
