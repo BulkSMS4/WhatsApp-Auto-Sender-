@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auto WhatsApp Sender</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #25D366;
+      color: #fff;
+      text-align: center;
+      padding: 1rem;
+      font-size: 1.4em;
+      font-weight: bold;
+    }
+    section {
+      padding: 1rem;
+    }
+    h2 {
+      color: #333;
+    }
+    input, textarea, select, button {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button {
+      background: #25D366;
+      color: white;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #1ebe5c;
+    }
+    .product {
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 6px;
+      background: #fff;
+    }
+    .buy-btn {
+      background: #007bff;
+    }
+  </style>
+</head>
+<body>
+
+<header>📱 WhatsApp Auto Sender Dashboard</header>
+
+<section>
+  <h2>Add Contact</h2>
+  <input type="text" id="contactName" placeholder="Name">
+  <input type="text" id="contactNumber" placeholder="Phone number (with country code)">
+  <button onclick="addContact()">Save Contact</button>
+  <hr>
+
+  <h2>Add Product</h2>
+  <input type="text" id="productName" placeholder="Product name">
+  <textarea id="productDesc" placeholder="Product description"></textarea>
+  <input type="text" id="productPrice" placeholder="Product price">
+  <input type="text" id="productLink" placeholder="Payment link URL">
+  <button onclick="addProduct()">Add Product</button>
+
+  <h2>Products</h2>
+  <div id="productList"></div>
+
+  <hr>
+  <button onclick="startAutoSend()">🚀 Start Auto Send</button>
+</section>
+
+<script>
+  let contacts = [];
+  let products = [];
+
+  function addContact() {
+    const name = document.getElementById('contactName').value.trim();
+    const number = document.getElementById('contactNumber').value.trim();
+    if (!name || !number) return alert('Enter name and phone number');
+    contacts.push({ name, number });
+    alert('Contact added!');
+  }
+
+  function addProduct() {
+    const name = document.getElementById('productName').value.trim();
+    const desc = document.getElementById('productDesc').value.trim();
+    const price = document.getElementById('productPrice').value.trim();
+    const link = document.getElementById('productLink').value.trim();
+    if (!name || !price || !link) return alert('Enter all required fields');
+
+    const product = { name, desc, price, link };
+    products.push(product);
+    renderProducts();
+  }
+
+  function renderProducts() {
+    const list = document.getElementById('productList');
+    list.innerHTML = '';
+    products.forEach(p => {
+      list.innerHTML += `
+        <div class="product">
+          <h3>${p.name}</h3>
+          <p>${p.desc}</p>
+          <strong>Price:</strong> ${p.price}<br>
+          <button class="buy-btn" onclick="window.open('${p.link}', '_blank')">Buy Now</button>
+        </div>
+      `;
+    });
+  }
+
+  function startAutoSend() {
+    if (contacts.length === 0 || products.length === 0) {
+      return alert('Add at least one contact and one product first!');
+    }
+    alert('Auto sending started!');
+    // Simulate sending message every 5 minutes (for demo, 15 seconds)
+    setInterval(() => {
+      contacts.forEach(c => {
+        console.log(`Sending message to ${c.name} (${c.number})`);
+        // In real setup, backend sends message using server.js
+      });
+    }, 15000); // change to 300000 (5 min)
+  }
+</script>
+
+</body>
+  </html>
