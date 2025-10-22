@@ -52,13 +52,24 @@
     .buy-btn {
       background: #007bff;
     }
+    #dashboard {
+      display: none;
+    }
   </style>
 </head>
 <body>
 
 <header>📱 WhatsApp Auto Sender Dashboard</header>
 
-<section>
+<!-- 🔐 LOGIN SECTION -->
+<section id="login">
+  <h2>Login</h2>
+  <input type="password" id="password" placeholder="Enter Password">
+  <button onclick="login()">Login</button>
+</section>
+
+<!-- ✅ DASHBOARD SECTION -->
+<section id="dashboard">
   <h2>Add Contact</h2>
   <input type="text" id="contactName" placeholder="Name">
   <input type="text" id="contactNumber" placeholder="Phone number (with country code)">
@@ -80,15 +91,26 @@
 </section>
 
 <script>
+  const PASSWORD = "Forgetme"; // 🟢 Replace if you change ADMIN_PASSWORD in server.js
   let contacts = [];
   let products = [];
+
+  function login() {
+    const entered = document.getElementById('password').value.trim();
+    if (entered === PASSWORD) {
+      document.getElementById('login').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+    } else {
+      alert("❌ Wrong password");
+    }
+  }
 
   function addContact() {
     const name = document.getElementById('contactName').value.trim();
     const number = document.getElementById('contactNumber').value.trim();
     if (!name || !number) return alert('Enter name and phone number');
     contacts.push({ name, number });
-    alert('Contact added!');
+    alert('✅ Contact added!');
   }
 
   function addProduct() {
@@ -122,16 +144,29 @@
     if (contacts.length === 0 || products.length === 0) {
       return alert('Add at least one contact and one product first!');
     }
-    alert('Auto sending started!');
-    // Simulate sending message every 5 minutes (for demo, 15 seconds)
+
+    alert('🚀 Auto sending started!');
+
     setInterval(() => {
-      contacts.forEach(c => {
-        console.log(`Sending message to ${c.name} (${c.number})`);
-        // In real setup, backend sends message using server.js
+      contacts.forEach(async c => {
+        const product = products[Math.floor(Math.random() * products.length)];
+        const message = `Hi ${c.name}! Check out ${product.name} for just ${product.price}. ${product.desc}\nBuy now: ${product.link}`;
+
+        try {
+          const res = await fetch("/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ number: c.number, message })
+          });
+          const data = await res.json();
+          console.log("Message sent:", data);
+        } catch (err) {
+          console.error("Failed to send:", err);
+        }
       });
-    }, 15000); // change to 300000 (5 min)
+    }, 15000); // 15 sec demo, change to 300000 for 5 mins
   }
 </script>
 
 </body>
-  </html>
+</html>
