@@ -1,32 +1,15 @@
-[
-  {
-    "name": "Wireless Earbuds",
-    "desc": "High-quality Bluetooth earbuds with clear sound and long battery life.",
-    "price": "$49.99",
-    "link": "https://example.com/earbuds"
+{
+  "name": "whatsapp-auto-sender",
+  "version": "1.0.0",
+  "description": "A WhatsApp Cloud API auto sender that sends product messages to contacts every 10 minutes.",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
   },
-  {
-    "name": "Smart Watch",
-    "desc": "Track your steps, heart rate, and notifications easily.",
-    "price": "$99.99",
-    "link": "https://example.com/smartwatch"
+  "dependencies": {
+    "node-fetch": "^3.3.2"
   },
-  {
-    "name": "Power Bank 20000mAh",
-    "desc": "Fast-charging power bank suitable for all smartphones.",
-    "price": "$39.99",
-    "link": "https://example.com/powerbank"
-  },
-  {
-    "name": "Bluetooth Speaker",
-    "desc": "Portable speaker with deep bass and crisp audio.",
-    "price": "$59.99",
-    "link": "https://example.com/speaker"
-  },
-  {
-    "name": "USB-C Charger",
-    "desc": "Fast wall charger with 25W output and smart power protection.",
-    "price": "$24.99",
-    "link": "https://example.com/charger"
-  }
-]
+  "author": "BulkSMS4",
+  "license": "MIT"
+}
