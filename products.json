@@ -1,14 +1,32 @@
 [
   {
-    "name": "Vegan Protein Shake",
-    "description": "High-quality plant-based protein powder with 20g per serving.",
-    "price": "GHS 150",
-    "payment_link": "https://paystack.com/buy/vegan-shake"
+    "name": "Wireless Earbuds",
+    "desc": "High-quality Bluetooth earbuds with clear sound and long battery life.",
+    "price": "$49.99",
+    "link": "https://example.com/earbuds"
   },
   {
-    "name": "Organic Soap",
-    "description": "Handmade coconut oil soap bar with aloe vera.",
-    "price": "GHS 30",
-    "payment_link": "https://flutterwave.com/pay/organicsoap"
+    "name": "Smart Watch",
+    "desc": "Track your steps, heart rate, and notifications easily.",
+    "price": "$99.99",
+    "link": "https://example.com/smartwatch"
+  },
+  {
+    "name": "Power Bank 20000mAh",
+    "desc": "Fast-charging power bank suitable for all smartphones.",
+    "price": "$39.99",
+    "link": "https://example.com/powerbank"
+  },
+  {
+    "name": "Bluetooth Speaker",
+    "desc": "Portable speaker with deep bass and crisp audio.",
+    "price": "$59.99",
+    "link": "https://example.com/speaker"
+  },
+  {
+    "name": "USB-C Charger",
+    "desc": "Fast wall charger with 25W output and smart power protection.",
+    "price": "$24.99",
+    "link": "https://example.com/charger"
   }
 ]
