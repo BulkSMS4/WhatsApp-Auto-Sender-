@@ -1,4 +1,6 @@
 [
-  {"name": "John Doe", "phone": "233xxxxxxxxx"},
-  {"name": "Sarah", "phone": "233yyyyyyyyy"}
+  { "name": "John Doe", "phone": "233201234567" },
+  { "name": "Sarah Smith", "phone": "233209876543" },
+  { "name": "Michael Johnson", "phone": "233207654321" }
+  // add as many as you want
 ]
