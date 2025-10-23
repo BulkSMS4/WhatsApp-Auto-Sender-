@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🛒 Store</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9fafb;
+      margin: 0;
+      padding: 0;
+      color: #222;
+    }
+    header {
+      background: #25D366;
+      color: white;
+      text-align: center;
+      padding: 1rem;
+      font-size: 1.4em;
+      font-weight: bold;
+    }
+    main {
+      padding: 1rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+      gap: 15px;
+    }
+    .product {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .product.sold {
+      opacity: 0.5;
+    }
+    .product h3 {
+      margin: 0 0 5px 0;
+      color: #333;
+    }
+    .product p {
+      flex: 1;
+      color: #555;
+    }
+    .price {
+      font-weight: bold;
+      color: #111;
+      margin-bottom: 10px;
+    }
+    button {
+      border: none;
+      border-radius: 6px;
+      padding: 10px;
+      margin-top: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 0.9em;
+      transition: 0.3s;
+    }
+    .buy-btn {
+      background: #25D366;
+      color: white;
+    }
+    .buy-btn:hover {
+      background: #1ebe5c;
+    }
+    .admin-btn {
+      background: #ff5a5f;
+      color: white;
+    }
+    .admin-btn:hover {
+      background: #e04b4f;
+    }
+    .mark-btn {
+      background: #007bff;
+      color: white;
+    }
+    .mark-btn:hover {
+      background: #006ae1;
+    }
+    iframe {
+      width: 100%;
+      height: 500px;
+      border: none;
+      margin-top: 20px;
+      display: none;
+    }
+    #adminControls {
+      text-align: center;
+      margin: 10px 0;
+    }
+    #adminControls input {
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      width: 200px;
+      margin-right: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<header>🛍️ Available Products</header>
+
+<!-- Admin login area (optional, for delete/mark sold) -->
+<div id="adminControls">
+  <input type="password" id="adminPassword" placeholder="Admin Password">
+  <button onclick="setAdmin()">Login as Admin</button>
+</div>
+
+<main id="products"></main>
+
+<iframe id="paymentFrame"></iframe>
+
+<script>
+  let ADMIN_PASSWORD = "";
+  const productContainer = document.getElementById("products");
+  const frame = document.getElementById("paymentFrame");
+
+  // Set admin mode
+  function setAdmin() {
+    const pw = document.getElementById("adminPassword").value.trim();
+    if (!pw) return alert("Enter password");
+    ADMIN_PASSWORD = pw;
+    alert("✅ Admin mode enabled");
+    loadProducts();
+  }
+
+  // Load all products
+  function loadProducts() {
+    fetch("/api/products")
+      .then(res => res.json())
+      .then(products => {
+        productContainer.innerHTML = "";
+        products.forEach(p => {
+          const card = document.createElement("div");
+          card.className = `product ${p.sold ? "sold" : ""}`;
+          card.innerHTML = `
+            <h3>${p.name}</h3>
+            <p>${p.desc || ""}</p>
+            <div class="price">₵${p.price}</div>
+            ${
+              p.sold
+                ? `<span style="color:red; font-weight:bold;">🚫 SOLD OUT</span>`
+                : `
+                  <button class="buy-btn" onclick="choosePayment('${p.id}')">Buy Now</button>
+                `
+            }
+            ${
+              ADMIN_PASSWORD
+                ? `
+                  <button class="admin-btn" onclick="deleteProduct('${p.id}')">🗑️ Delete</button>
+                  ${
+                    !p.sold
+                      ? `<button class="mark-btn" onclick="markSold('${p.id}')">✅ Mark as Sold</button>`
+                      : ""
+                  }
+                `
+                : ""
+            }
+          `;
+          productContainer.appendChild(card);
+        });
+      });
+  }
+
+  // Buyer chooses payment method
+  function choosePayment(id) {
+    fetch("/api/products")
+      .then(res => res.json())
+      .then(products => {
+        const product = products.find(p => p.id === id);
+        if (!product) return alert("Product not found");
+        if (product.sold) return alert("❌ Product already sold");
+
+        const choice = confirm(`Would you like to use the main checkout? (OK = Main, Cancel = Alternate)`);
+        const method = choice ? "paystack" : "direct";
+        openPayment(product, method);
+      });
+  }
+
+  // Open payment inside iframe
+  function openPayment(product, method) {
+    frame.style.display = "block";
+    frame.src = method === "paystack" ? product.onlinePayment : product.alternatePayment;
+    window.scrollTo({ top: frame.offsetTop, behavior: "smooth" });
+  }
+
+  // Delete product (admin)
+  function deleteProduct(id) {
+    if (!confirm("Are you sure you want to delete this product?")) return;
+    fetch(`/api/delete/${id}`, { method: "DELETE" })
+      .then(() => {
+        alert("🗑️ Deleted");
+        loadProducts();
+      });
+  }
+
+  // Mark as sold (admin)
+  function markSold(id) {
+    fetch(`/api/mark-sold/${id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: ADMIN_PASSWORD })
+    })
+      .then(() => {
+        alert("✅ Marked as sold");
+        loadProducts();
+      });
+  }
+
+  // Live auto-refresh (poll every 8s)
+  setInterval(loadProducts, 8000);
+  loadProducts();
+</script>
+
+</body>
+</html>
