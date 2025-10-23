@@ -29,10 +29,10 @@ const PORT = process.env.PORT || 5000;
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET || "";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Forgetme";
 
-const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || ""; // Meta WhatsApp Cloud token
-const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || ""; // Meta phone ID
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || "EAAbnZCZA0lZBioBPZC1Bl4LKGbmeamRE9s5NZC9BUzxfX1f4agMEZBIYvMX04Wv8C5K0ZBvkg78azsQInnIZAWAFq7SQzfSgtRIBheqXobkC73i3aYWfQH6z70Mq8uhoBjOvlzgdj1dYJf0nvqatB1UNcO8zQmNxhDor0Ptlp153BSiiZBc4j4ZBJCpbPYddnuEdT1PZBpHFDgZD"; // Meta WhatsApp Cloud token
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || "768962646310363"; // Meta phone ID
 const ADMIN_PHONE = process.env.ADMIN_PHONE || ""; // admin WhatsApp (international format)
-const ADMIN_NAME = process.env.ADMIN_NAME || "Admin";
+const ADMIN_NAME = process.env.ADMIN_NAME || "FATI_IBRAHIM";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "";
@@ -41,7 +41,7 @@ const SMTP_HOST = process.env.SMTP_HOST || process.env.SMTP_HOST;
 const SMTP_PORT = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 465;
 const SMTP_USER = process.env.SMTP_USER || process.env.EMAIL_USER || "";
 const SMTP_PASS = process.env.SMTP_PASS || process.env.EMAIL_PASS || "";
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "johnofosu20@gmail.com";
 
 // Toggle auto messages loop (default true)
 const AUTO_MESSAGES = (process.env.AUTO_MESSAGES || "true").toLowerCase() !== "false";
