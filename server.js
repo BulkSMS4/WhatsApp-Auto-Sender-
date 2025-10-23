@@ -1,121 +1,156 @@
 import express from "express";
-import fetch from "node-fetch";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
+import bodyParser from "body-parser";
+import dotenv from "dotenv";
+import fetch from "node-fetch";
+import crypto from "crypto";
+
+dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 10000;
+app.use(bodyParser.json());
+app.use(express.static("public"));
 
-// Allow JSON requests
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const __dirname = path.resolve();
+const productsFile = path.join(__dirname, "products.json");
 
-// ✅ Your credentials (from Render .env or direct input)
-const ACCESS_TOKEN = process.env.ACCESS_TOKEN || "EAAbnZCZA0lZBioBPZC1Bl4LKGbmeamRE9s5NZC9BUzxfX1f4agMEZBIYvMX04Wv8C5K0ZBvkg78azsQInnIZAWAFq7SQzfSgtRIBheqXobkC73i3aYWfQH6z70Mq8uhoBjOvlzgdj1dYJf0nvqatB1UNcO8zQmNxhDor0Ptlp153BSiiZBc4j4ZBJCpbPYddnuEdT1PZBpHFDgZD";
-const PHONE_ID = process.env.PHONE_NUMBER_ID || "768962646310363";
+// 🌍 Load from environment
+const PORT = process.env.PORT || 5000;
+const TOKEN = process.env.TOKEN;
+const API = process.env.API;
+const ADMIN_NAME = process.env.ADMIN_NAME;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Forgetme";
+const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET;
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
-// Serve dashboard files
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-app.use(express.static(__dirname));
+// 🗂️ Load saved products
+let products = [];
+if (fs.existsSync(productsFile)) {
+  products = JSON.parse(fs.readFileSync(productsFile, "utf8"));
+}
 
-// 🟢 Load Data (contacts & products)
-function loadData() {
+// ✅ Save product helper
+function saveProducts() {
+  fs.writeFileSync(productsFile, JSON.stringify(products, null, 2));
+}
+
+// 📦 Get all products
+app.get("/api/products", (req, res) => {
+  res.json(products);
+});
+
+// ➕ Add product (admin only)
+app.post("/api/add-product", (req, res) => {
+  const { password, name, desc, price, onlinePayment, alternatePayment } = req.body;
+  if (password !== ADMIN_PASSWORD)
+    return res.status(403).json({ error: "Unauthorized" });
+
+  const newProduct = {
+    id: Date.now().toString(),
+    name,
+    desc,
+    price,
+    onlinePayment,
+    alternatePayment,
+    sold: false,
+  };
+  products.push(newProduct);
+  saveProducts();
+  res.json({ success: true, product: newProduct });
+});
+
+// 🗑️ Delete product
+app.delete("/api/delete/:id", (req, res) => {
+  const { id } = req.params;
+  products = products.filter((p) => p.id !== id);
+  saveProducts();
+  res.json({ success: true });
+});
+
+// 🏷️ Mark sold
+app.post("/api/mark-sold/:id", (req, res) => {
+  const product = products.find((p) => p.id === req.params.id);
+  if (!product) return res.status(404).json({ error: "Product not found" });
+  product.sold = true;
+  saveProducts();
+  res.json({ success: true });
+});
+
+// 💳 Initialize Paystack payment
+app.post("/api/paystack/initiate", async (req, res) => {
+  const { email, amount, productId } = req.body;
   try {
-    const contacts = fs.existsSync("contacts.json")
-      ? JSON.parse(fs.readFileSync("contacts.json"))
-      : [];
-    const products = fs.existsSync("products.json")
-      ? JSON.parse(fs.readFileSync("products.json"))
-      : [];
-    return { contacts, products };
-  } catch (err) {
-    console.error("Error reading files:", err);
-    return { contacts: [], products: [] };
+    const response = await fetch("https://api.paystack.co/transaction/initialize", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${PAYSTACK_SECRET}`,
+      },
+      body: JSON.stringify({
+        email,
+        amount: Number(amount) * 100,
+        metadata: { productId },
+        callback_url: "https://yourdomain.com/payment-success",
+      }),
+    });
+
+    const data = await response.json();
+    if (!data.status) return res.status(400).json({ error: data.message });
+    res.json({ authorization_url: data.data.authorization_url });
+  } catch (error) {
+    console.error("Paystack Error:", error);
+    res.status(500).json({ error: "Payment initialization failed" });
   }
-}
-
-// 🟢 Save Data
-function saveData(filename, data) {
-  fs.writeFileSync(filename, JSON.stringify(data, null, 2));
-}
-
-// 🟩 Endpoint: Add Contact
-app.post("/add-contact", (req, res) => {
-  const { name, number, password } = req.body;
-  if (password !== ADMIN_PASSWORD) {
-    return res.status(403).send("❌ Unauthorized: wrong password.");
-  }
-
-  const { contacts } = loadData();
-  contacts.push({ name, phone: number });
-  saveData("contacts.json", contacts);
-  res.send("✅ Contact added successfully!");
 });
 
-// 🟩 Endpoint: Add Product
-app.post("/add-product", (req, res) => {
-  const { name, desc, price, link, password } = req.body;
-  if (password !== ADMIN_PASSWORD) {
-    return res.status(403).send("❌ Unauthorized: wrong password.");
-  }
+// 🔔 Paystack Webhook
+app.post("/webhook/paystack", (req, res) => {
+  const signature = req.headers["x-paystack-signature"];
+  const hash = crypto.createHmac("sha512", PAYSTACK_SECRET)
+    .update(JSON.stringify(req.body))
+    .digest("hex");
 
-  const { products } = loadData();
-  products.push({ name, description: desc, price, payment_link: link });
-  saveData("products.json", products);
-  res.send("✅ Product added successfully!");
-});
+  if (hash !== signature) return res.status(400).send("Invalid signature");
 
-// 🟩 Send Messages Automatically
-async function sendProductMessages() {
-  const { contacts, products } = loadData();
-  if (!contacts.length || !products.length) return;
+  const event = req.body;
+  if (event.event === "charge.success") {
+    const productId = event.data.metadata?.productId;
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      product.sold = true;
+      saveProducts();
+      console.log(`✅ ${product.name} marked as sold (payment successful)`);
 
-  for (const contact of contacts) {
-    for (const product of products) {
+      // Optional: send WhatsApp confirmation to admin
       const message = {
         messaging_product: "whatsapp",
-        to: contact.phone,
-        type: "interactive",
-        interactive: {
-          type: "button",
-          body: {
-            text: `🛍️ *${product.name}*\n${product.description}\n💵 *Price:* ${product.price}`
-          },
-          action: {
-            buttons: [
-              {
-                type: "url",
-                url: product.payment_link,
-                title: "Buy Now 💳"
-              }
-            ]
-          }
-        }
+        to: "your_admin_phone_number_here",
+        type: "text",
+        text: { body: `💰 Payment received for ${product.name}` },
       };
 
-      try {
-        await fetch(`https://graph.facebook.com/v21.0/${PHONE_ID}/messages`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${ACCESS_TOKEN}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(message)
-        });
-        console.log(`✅ Sent message to ${contact.name}`);
-      } catch (err) {
-        console.error(`❌ Error sending to ${contact.name}:`, err.message);
-      }
+      fetch(API, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(message),
+      }).catch(console.error);
     }
   }
-}
 
-// Auto send every 10 minutes
-setInterval(sendProductMessages, 10 * 60 * 1000);
-sendProductMessages();
+  res.sendStatus(200);
+});
 
-// 🟩 Start Server
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+// 🧩 WhatsApp Auto Sender (demo endpoint)
+app.post("/send", (req, res) => {
+  const { number, message } = req.body;
+  console.log(`Sending message to ${number}: ${message}`);
+  res.json({ success: true });
+});
+
+app.listen(PORT, () =>
+  console.log(`✅ Server running on port ${PORT} as ${ADMIN_NAME}`)
+);
