@@ -14,52 +14,32 @@ app.use(express.static("public"));
 
 const __dirname = path.resolve();
 const productsFile = path.join(__dirname, "products.json");
-const paymentsFile = path.join(__dirname, "payments.log");
 
 const PORT = process.env.PORT || 5000;
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Forgetme";
-const ADMIN_NAME = process.env.ADMIN_NAME || "Admin";
-const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+const ACCESS_TOKEN = process.env.WHATSAPP_TOKEN;
+const PHONE_ID = process.env.PHONE_NUMBER_ID;
+const ADMIN_PHONE = process.env.ADMIN_PHONE;
+const ADMIN_NAME = process.env.ADMIN_NAME;
 
 // 🗂️ Load saved products
 let products = [];
 if (fs.existsSync(productsFile)) {
   products = JSON.parse(fs.readFileSync(productsFile, "utf8"));
 }
-
-// ✅ Save product helper
 function saveProducts() {
   fs.writeFileSync(productsFile, JSON.stringify(products, null, 2));
 }
 
-// 🔄 Broadcast live updates (SSE)
-let clients = [];
-app.get("/events", (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  clients.push(res);
-  req.on("close", () => {
-    clients = clients.filter((c) => c !== res);
-  });
-});
+// 🧾 Get all products
+app.get("/api/products", (req, res) => res.json(products));
 
-function broadcastUpdate(data) {
-  clients.forEach((res) => res.write(`data: ${JSON.stringify(data)}\n\n`));
-}
-
-// 📦 Get all products
-app.get("/api/products", (req, res) => {
-  res.json(products);
-});
-
-// ➕ Add product (admin only)
+// ➕ Add product
 app.post("/api/add-product", (req, res) => {
   const { password, name, desc, price, onlinePayment, alternatePayment } = req.body;
-  if (password !== ADMIN_PASSWORD)
-    return res.status(403).json({ error: "Unauthorized" });
+  if (password !== ADMIN_PASSWORD) return res.status(403).json({ error: "Unauthorized" });
 
   const newProduct = {
     id: Date.now().toString(),
@@ -72,31 +52,46 @@ app.post("/api/add-product", (req, res) => {
   };
   products.push(newProduct);
   saveProducts();
-  broadcastUpdate({ type: "new", product: newProduct });
   res.json({ success: true, product: newProduct });
+});
+
+// ✏️ Edit product
+app.put("/api/edit-product/:id", (req, res) => {
+  const { password, name, desc, price, onlinePayment, alternatePayment } = req.body;
+  if (password !== ADMIN_PASSWORD) return res.status(403).json({ error: "Unauthorized" });
+
+  const product = products.find(p => p.id === req.params.id);
+  if (!product) return res.status(404).json({ error: "Product not found" });
+
+  Object.assign(product, { name, desc, price, onlinePayment, alternatePayment });
+  saveProducts();
+  res.json({ success: true });
 });
 
 // 🗑️ Delete product
 app.delete("/api/delete/:id", (req, res) => {
-  const { id } = req.params;
-  products = products.filter((p) => p.id !== id);
+  const { password } = req.body;
+  if (password !== ADMIN_PASSWORD) return res.status(403).json({ error: "Unauthorized" });
+
+  products = products.filter(p => p.id !== req.params.id);
   saveProducts();
-  broadcastUpdate({ type: "delete", id });
   res.json({ success: true });
 });
 
-// 🏷️ Mark sold (manual by admin)
+// 🏷️ Mark as sold
 app.post("/api/mark-sold/:id", (req, res) => {
-  const product = products.find((p) => p.id === req.params.id);
+  const { password } = req.body;
+  if (password !== ADMIN_PASSWORD) return res.status(403).json({ error: "Unauthorized" });
+
+  const product = products.find(p => p.id === req.params.id);
   if (!product) return res.status(404).json({ error: "Product not found" });
+
   product.sold = true;
   saveProducts();
-
-  broadcastUpdate({ type: "sold", id: product.id, name: product.name });
   res.json({ success: true });
 });
 
-// 💳 Initialize Paystack payment
+// 💳 Initialize Paystack
 app.post("/api/paystack/initiate", async (req, res) => {
   const { email, amount, productId } = req.body;
   try {
@@ -113,7 +108,6 @@ app.post("/api/paystack/initiate", async (req, res) => {
         callback_url: "https://yourdomain.com/payment-success",
       }),
     });
-
     const data = await response.json();
     if (!data.status) return res.status(400).json({ error: data.message });
     res.json({ authorization_url: data.data.authorization_url });
@@ -123,48 +117,79 @@ app.post("/api/paystack/initiate", async (req, res) => {
   }
 });
 
-// 🔔 Paystack Webhook — only logs payment, doesn’t mark sold
-app.post("/webhook/paystack", (req, res) => {
-  const signature = req.headers["x-paystack-signature"];
-  const hash = crypto
-    .createHmac("sha512", PAYSTACK_SECRET)
-    .update(JSON.stringify(req.body))
-    .digest("hex");
+// 🔔 Paystack Webhook
+app.post("/webhook/paystack", express.raw({ type: "application/json" }), async (req, res) => {
+  try {
+    const signature = req.headers["x-paystack-signature"];
+    const rawBody = req.body.toString();
 
-  if (hash !== signature) return res.status(400).send("Invalid signature");
+    const hash = crypto.createHmac("sha512", PAYSTACK_SECRET).update(rawBody).digest("hex");
+    if (hash !== signature) return res.status(400).send("Invalid signature");
 
-  const event = req.body;
-  if (event.event === "charge.success") {
-    const productId = event.data.metadata?.productId;
-    const product = products.find((p) => p.id === productId);
+    const event = JSON.parse(rawBody);
 
-    const logEntry = `[${new Date().toISOString()}] 💳 Payment received from ${
-      event.data.customer.email
-    } — ₦${event.data.amount / 100} for ${product ? product.name : "Unknown Product"}\n`;
-    fs.appendFileSync(paymentsFile, logEntry);
+    if (event.event === "charge.success") {
+      const tx = event.data;
+      const productId = tx.metadata?.productId;
+      const product = products.find(p => p.id === productId);
+      if (product) {
+        product.sold = true;
+        saveProducts();
+        console.log(`✅ ${product.name} marked as sold.`);
 
-    console.log(logEntry);
+        const buyerPhone = tx.metadata?.phone || tx.customer.phone;
+        const buyerName = tx.metadata?.name || tx.customer.first_name;
+        const buyerAddress = tx.metadata?.address || "No address provided";
+
+        // 💬 Send WhatsApp message to buyer
+        if (buyerPhone) {
+          const msg = {
+            messaging_product: "whatsapp",
+            to: buyerPhone.replace(/\D/g, ""),
+            type: "text",
+            text: {
+              body: `✅ *Payment Received!*\n\nHi ${buyerName || "Customer"},\nWe’ve received your payment for *${product.name}*.\n\nDelivery Address: ${buyerAddress}\n\nThank you for shopping with us! 💚`,
+            },
+          };
+          await fetch(`https://graph.facebook.com/v21.0/${PHONE_ID}/messages`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${ACCESS_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(msg),
+          });
+          console.log("📩 Buyer notified via WhatsApp.");
+        }
+
+        // 💬 Notify admin
+        if (ADMIN_PHONE) {
+          const adminMsg = {
+            messaging_product: "whatsapp",
+            to: ADMIN_PHONE,
+            type: "text",
+            text: {
+              body: `💰 *New Order Received!*\nProduct: ${product.name}\nAmount: ${tx.currency} ${tx.amount / 100}\nCustomer: ${tx.customer.email}\nPhone: ${buyerPhone}\nAddress: ${buyerAddress}`,
+            },
+          };
+          await fetch(`https://graph.facebook.com/v21.0/${PHONE_ID}/messages`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${ACCESS_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(adminMsg),
+          });
+          console.log("📢 Admin notified via WhatsApp.");
+        }
+      }
+    }
+
+    res.status(200).send("ok");
+  } catch (err) {
+    console.error("❌ Webhook error:", err);
+    res.status(500).send("error");
   }
-
-  res.sendStatus(200);
-});
-
-// 🧾 View payments log (admin only)
-app.get("/api/payments", (req, res) => {
-  const password = req.query.password;
-  if (password !== ADMIN_PASSWORD)
-    return res.status(403).json({ error: "Unauthorized" });
-
-  if (!fs.existsSync(paymentsFile)) return res.json([]);
-  const logs = fs.readFileSync(paymentsFile, "utf8").split("\n").filter(Boolean);
-  res.json(logs);
-});
-
-// 🧩 WhatsApp message simulator
-app.post("/send", (req, res) => {
-  const { number, message } = req.body;
-  console.log(`📤 Sending message to ${number}: ${message}`);
-  res.json({ success: true });
 });
 
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
