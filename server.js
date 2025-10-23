@@ -14,15 +14,14 @@ app.use(express.static("public"));
 
 const __dirname = path.resolve();
 const productsFile = path.join(__dirname, "products.json");
+const paymentsFile = path.join(__dirname, "payments.log");
 
-// 🌍 Load from environment
 const PORT = process.env.PORT || 5000;
-const TOKEN = process.env.TOKEN;
-const API = process.env.API;
-const ADMIN_NAME = process.env.ADMIN_NAME;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Forgetme";
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET;
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Forgetme";
+const ADMIN_NAME = process.env.ADMIN_NAME || "Admin";
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 
 // 🗂️ Load saved products
 let products = [];
@@ -33,6 +32,22 @@ if (fs.existsSync(productsFile)) {
 // ✅ Save product helper
 function saveProducts() {
   fs.writeFileSync(productsFile, JSON.stringify(products, null, 2));
+}
+
+// 🔄 Broadcast live updates (SSE)
+let clients = [];
+app.get("/events", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  clients.push(res);
+  req.on("close", () => {
+    clients = clients.filter((c) => c !== res);
+  });
+});
+
+function broadcastUpdate(data) {
+  clients.forEach((res) => res.write(`data: ${JSON.stringify(data)}\n\n`));
 }
 
 // 📦 Get all products
@@ -57,6 +72,7 @@ app.post("/api/add-product", (req, res) => {
   };
   products.push(newProduct);
   saveProducts();
+  broadcastUpdate({ type: "new", product: newProduct });
   res.json({ success: true, product: newProduct });
 });
 
@@ -65,15 +81,18 @@ app.delete("/api/delete/:id", (req, res) => {
   const { id } = req.params;
   products = products.filter((p) => p.id !== id);
   saveProducts();
+  broadcastUpdate({ type: "delete", id });
   res.json({ success: true });
 });
 
-// 🏷️ Mark sold
+// 🏷️ Mark sold (manual by admin)
 app.post("/api/mark-sold/:id", (req, res) => {
   const product = products.find((p) => p.id === req.params.id);
   if (!product) return res.status(404).json({ error: "Product not found" });
   product.sold = true;
   saveProducts();
+
+  broadcastUpdate({ type: "sold", id: product.id, name: product.name });
   res.json({ success: true });
 });
 
@@ -104,10 +123,11 @@ app.post("/api/paystack/initiate", async (req, res) => {
   }
 });
 
-// 🔔 Paystack Webhook
+// 🔔 Paystack Webhook — only logs payment, doesn’t mark sold
 app.post("/webhook/paystack", (req, res) => {
   const signature = req.headers["x-paystack-signature"];
-  const hash = crypto.createHmac("sha512", PAYSTACK_SECRET)
+  const hash = crypto
+    .createHmac("sha512", PAYSTACK_SECRET)
     .update(JSON.stringify(req.body))
     .digest("hex");
 
@@ -116,41 +136,35 @@ app.post("/webhook/paystack", (req, res) => {
   const event = req.body;
   if (event.event === "charge.success") {
     const productId = event.data.metadata?.productId;
-    const product = products.find(p => p.id === productId);
-    if (product) {
-      product.sold = true;
-      saveProducts();
-      console.log(`✅ ${product.name} marked as sold (payment successful)`);
+    const product = products.find((p) => p.id === productId);
 
-      // Optional: send WhatsApp confirmation to admin
-      const message = {
-        messaging_product: "whatsapp",
-        to: "your_admin_phone_number_here",
-        type: "text",
-        text: { body: `💰 Payment received for ${product.name}` },
-      };
+    const logEntry = `[${new Date().toISOString()}] 💳 Payment received from ${
+      event.data.customer.email
+    } — ₦${event.data.amount / 100} for ${product ? product.name : "Unknown Product"}\n`;
+    fs.appendFileSync(paymentsFile, logEntry);
 
-      fetch(API, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(message),
-      }).catch(console.error);
-    }
+    console.log(logEntry);
   }
 
   res.sendStatus(200);
 });
 
-// 🧩 WhatsApp Auto Sender (demo endpoint)
+// 🧾 View payments log (admin only)
+app.get("/api/payments", (req, res) => {
+  const password = req.query.password;
+  if (password !== ADMIN_PASSWORD)
+    return res.status(403).json({ error: "Unauthorized" });
+
+  if (!fs.existsSync(paymentsFile)) return res.json([]);
+  const logs = fs.readFileSync(paymentsFile, "utf8").split("\n").filter(Boolean);
+  res.json(logs);
+});
+
+// 🧩 WhatsApp message simulator
 app.post("/send", (req, res) => {
   const { number, message } = req.body;
-  console.log(`Sending message to ${number}: ${message}`);
+  console.log(`📤 Sending message to ${number}: ${message}`);
   res.json({ success: true });
 });
 
-app.listen(PORT, () =>
-  console.log(`✅ Server running on port ${PORT} as ${ADMIN_NAME}`)
-);
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
