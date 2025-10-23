@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Auto WhatsApp Sender</title>
+  <title>WhatsApp Auto Sender Dashboard</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f9f9f9;
+      background: #f7f7f7;
       margin: 0;
       padding: 0;
     }
     header {
       background: #25D366;
-      color: #fff;
+      color: white;
       text-align: center;
       padding: 1rem;
       font-size: 1.4em;
@@ -22,10 +22,7 @@
     section {
       padding: 1rem;
     }
-    h2 {
-      color: #333;
-    }
-    input, textarea, select, button {
+    input, textarea, button {
       width: 100%;
       padding: 10px;
       margin: 8px 0;
@@ -39,21 +36,70 @@
       font-weight: bold;
       cursor: pointer;
     }
-    button:hover {
-      background: #1ebe5c;
-    }
+    button:hover { background: #1ebe5c; }
     .product {
       border: 1px solid #ddd;
-      padding: 10px;
-      margin: 8px 0;
-      border-radius: 6px;
       background: #fff;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+    }
+    .sold {
+      background: #ffeaea;
+      text-decoration: line-through;
+      opacity: 0.7;
+    }
+    .product-actions button {
+      margin-right: 5px;
+      padding: 6px 10px;
     }
     .buy-btn {
       background: #007bff;
     }
-    #dashboard {
+    .delete-btn {
+      background: #ff4d4d;
+    }
+    .sold-btn {
+      background: #ff9800;
+    }
+
+    /* Payment modal */
+    #chooseModal, #paymentModal {
       display: none;
+      position: fixed;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    #chooseContent, #paymentContent {
+      background: #fff;
+      width: 90%;
+      max-width: 600px;
+      border-radius: 10px;
+      padding: 1.5rem;
+      text-align: center;
+      position: relative;
+    }
+    #paymentContent iframe {
+      width: 100%;
+      height: 500px;
+      border: none;
+    }
+    #closeChoose, #closePayment {
+      position: absolute;
+      right: 15px;
+      top: 10px;
+      background: #ff4d4d;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      font-weight: bold;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -61,112 +107,151 @@
 
 <header>📱 WhatsApp Auto Sender Dashboard</header>
 
-<!-- 🔐 LOGIN SECTION -->
-<section id="login">
-  <h2>Login</h2>
-  <input type="password" id="password" placeholder="Enter Password">
-  <button onclick="login()">Login</button>
-</section>
-
-<!-- ✅ DASHBOARD SECTION -->
 <section id="dashboard">
-  <h2>Add Contact</h2>
-  <input type="text" id="contactName" placeholder="Name">
+  <h2>Add New Contact</h2>
+  <input type="text" id="contactName" placeholder="Customer Name">
   <input type="text" id="contactNumber" placeholder="Phone number (with country code)">
   <button onclick="addContact()">Save Contact</button>
   <hr>
 
-  <h2>Add Product</h2>
-  <input type="text" id="productName" placeholder="Product name">
-  <textarea id="productDesc" placeholder="Product description"></textarea>
-  <input type="text" id="productPrice" placeholder="Product price">
-  <input type="text" id="productLink" placeholder="Payment link URL">
+  <h2>Add New Product</h2>
+  <input type="text" id="productName" placeholder="Product Name">
+  <textarea id="productDesc" placeholder="Description"></textarea>
+  <input type="text" id="productPrice" placeholder="Price (e.g. 200 GHS)">
+  <input type="text" id="onlinePayment" placeholder="Online Payment URL (for card/MoMo)">
+  <input type="text" id="alternatePayment" placeholder="Alternate Payment URL (e.g. WhatsApp Pay, CashApp)">
   <button onclick="addProduct()">Add Product</button>
 
-  <h2>Products</h2>
+  <h2>All Products</h2>
   <div id="productList"></div>
 
   <hr>
   <button onclick="startAutoSend()">🚀 Start Auto Send</button>
 </section>
 
+<!-- 🪙 Choose Payment Modal -->
+<div id="chooseModal">
+  <div id="chooseContent">
+    <button id="closeChoose" onclick="closeChoose()">✖</button>
+    <h2>Select How You’d Like to Pay</h2>
+    <p>Choose your preferred payment option below:</p>
+    <button id="chooseOnline" style="background:#007bff;">💳 Secure Online Payment</button>
+    <button id="chooseAlt" style="background:#ff9800;">🔗 Alternate Payment Page</button>
+  </div>
+</div>
+
+<!-- 💳 Payment Frame Modal -->
+<div id="paymentModal">
+  <div id="paymentContent">
+    <button id="closePayment" onclick="closePayment()">✖</button>
+    <iframe id="paymentFrame"></iframe>
+  </div>
+</div>
+
 <script>
-  const PASSWORD = "Forgetme"; // 🟢 Replace if you change ADMIN_PASSWORD in server.js
   let contacts = [];
   let products = [];
+  let selectedProduct = null;
 
-  function login() {
-    const entered = document.getElementById('password').value.trim();
-    if (entered === PASSWORD) {
-      document.getElementById('login').style.display = 'none';
-      document.getElementById('dashboard').style.display = 'block';
-    } else {
-      alert("❌ Wrong password");
-    }
-  }
-
+  // Add contacts
   function addContact() {
     const name = document.getElementById('contactName').value.trim();
     const number = document.getElementById('contactNumber').value.trim();
-    if (!name || !number) return alert('Enter name and phone number');
+    if (!name || !number) return alert("Please fill in both name and phone.");
     contacts.push({ name, number });
-    alert('✅ Contact added!');
+    alert("✅ Contact added!");
   }
 
+  // Add product
   function addProduct() {
     const name = document.getElementById('productName').value.trim();
     const desc = document.getElementById('productDesc').value.trim();
     const price = document.getElementById('productPrice').value.trim();
-    const link = document.getElementById('productLink').value.trim();
-    if (!name || !price || !link) return alert('Enter all required fields');
+    const onlinePayment = document.getElementById('onlinePayment').value.trim();
+    const alternatePayment = document.getElementById('alternatePayment').value.trim();
 
-    const product = { name, desc, price, link };
+    if (!name || !price) return alert("Product name and price required.");
+
+    const product = { name, desc, price, onlinePayment, alternatePayment, sold: false };
     products.push(product);
     renderProducts();
   }
 
+  // Render product list
   function renderProducts() {
-    const list = document.getElementById('productList');
-    list.innerHTML = '';
-    products.forEach(p => {
+    const list = document.getElementById("productList");
+    list.innerHTML = "";
+    products.forEach((p, i) => {
       list.innerHTML += `
-        <div class="product">
+        <div class="product ${p.sold ? 'sold' : ''}">
           <h3>${p.name}</h3>
           <p>${p.desc}</p>
           <strong>Price:</strong> ${p.price}<br>
-          <button class="buy-btn" onclick="window.open('${p.link}', '_blank')">Buy Now</button>
+          ${p.sold ? '<em>Marked as Sold</em>' : `
+            <button class="buy-btn" onclick="showPaymentOptions(${i})">Buy Now</button>
+          `}
+          <div class="product-actions">
+            <button class="sold-btn" onclick="markSold(${i})">Mark as Sold</button>
+            <button class="delete-btn" onclick="deleteProduct(${i})">Delete</button>
+          </div>
         </div>
       `;
     });
   }
 
-  function startAutoSend() {
-    if (contacts.length === 0 || products.length === 0) {
-      return alert('Add at least one contact and one product first!');
+  function deleteProduct(index) {
+    if (confirm("Are you sure you want to delete this product?")) {
+      products.splice(index, 1);
+      renderProducts();
     }
+  }
 
-    alert('🚀 Auto sending started!');
+  function markSold(index) {
+    products[index].sold = true;
+    renderProducts();
+  }
 
-    setInterval(() => {
-      contacts.forEach(async c => {
-        const product = products[Math.floor(Math.random() * products.length)];
-        const message = `Hi ${c.name}! Check out ${product.name} for just ${product.price}. ${product.desc}\nBuy now: ${product.link}`;
+  // Payment choice modal
+  function showPaymentOptions(index) {
+    selectedProduct = products[index];
+    document.getElementById('chooseModal').style.display = 'flex';
+  }
 
-        try {
-          const res = await fetch("/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ number: c.number, message })
-          });
-          const data = await res.json();
-          console.log("Message sent:", data);
-        } catch (err) {
-          console.error("Failed to send:", err);
-        }
-      });
-    }, 15000); // 15 sec demo, change to 300000 for 5 mins
+  document.getElementById('chooseOnline').onclick = () => {
+    if (!selectedProduct) return;
+    closeChoose();
+    if (selectedProduct.onlinePayment) openInDashboard(selectedProduct.onlinePayment);
+    else alert("No online payment link found for this item.");
+  };
+
+  document.getElementById('chooseAlt').onclick = () => {
+    if (!selectedProduct) return;
+    closeChoose();
+    if (selectedProduct.alternatePayment) openInDashboard(selectedProduct.alternatePayment);
+    else alert("No alternate payment link found for this item.");
+  };
+
+  function closeChoose() {
+    document.getElementById('chooseModal').style.display = 'none';
+  }
+
+  function openInDashboard(url) {
+    const frame = document.getElementById('paymentFrame');
+    frame.src = url;
+    document.getElementById('paymentModal').style.display = 'flex';
+  }
+
+  function closePayment() {
+    document.getElementById('paymentModal').style.display = 'none';
+    document.getElementById('paymentFrame').src = '';
+  }
+
+  // Auto send
+  function startAutoSend() {
+    if (contacts.length === 0 || products.length === 0) return alert("Add contacts and products first!");
+    alert("🚀 Auto sending started...");
   }
 </script>
 
 </body>
-</html>
+    </html>
