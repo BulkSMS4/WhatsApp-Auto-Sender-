@@ -1,104 +1,98 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🛒 Store</title>
+  <title>🛍️ Storefront</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f9fafb;
+      font-family: "Segoe UI", sans-serif;
+      background: #f4f4f4;
       margin: 0;
       padding: 0;
-      color: #222;
     }
     header {
       background: #25D366;
       color: white;
-      text-align: center;
       padding: 1rem;
+      text-align: center;
       font-size: 1.4em;
       font-weight: bold;
     }
-    main {
-      padding: 1rem;
+    #productContainer {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-      gap: 15px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1rem;
+      padding: 1rem;
     }
     .product {
       background: white;
       border-radius: 10px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
       padding: 1rem;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      position: relative;
     }
-    .product.sold {
-      opacity: 0.5;
-    }
-    .product h3 {
-      margin: 0 0 5px 0;
-      color: #333;
-    }
-    .product p {
-      flex: 1;
-      color: #555;
-    }
-    .price {
-      font-weight: bold;
-      color: #111;
-      margin-bottom: 10px;
-    }
-    button {
-      border: none;
-      border-radius: 6px;
-      padding: 10px;
-      margin-top: 5px;
-      cursor: pointer;
+    .sold-banner {
+      position: absolute;
+      top: 10px; right: 10px;
+      background: red;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 5px;
       font-weight: bold;
       font-size: 0.9em;
-      transition: 0.3s;
     }
-    .buy-btn {
+    button {
       background: #25D366;
       color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
     }
-    .buy-btn:hover {
-      background: #1ebe5c;
+    button:hover { background: #1ebe5c; }
+
+    /* Modal styles */
+    #chooseModal, #paymentModal {
+      display: none;
+      position: fixed;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
     }
-    .admin-btn {
-      background: #ff5a5f;
-      color: white;
+    #chooseContent, #paymentContent {
+      background: #fff;
+      width: 90%;
+      max-width: 600px;
+      border-radius: 10px;
+      padding: 1.5rem;
+      text-align: center;
+      position: relative;
     }
-    .admin-btn:hover {
-      background: #e04b4f;
-    }
-    .mark-btn {
-      background: #007bff;
-      color: white;
-    }
-    .mark-btn:hover {
-      background: #006ae1;
-    }
-    iframe {
+    #paymentContent iframe {
       width: 100%;
       height: 500px;
       border: none;
-      margin-top: 20px;
-      display: none;
+      border-radius: 8px;
     }
-    #adminControls {
-      text-align: center;
-      margin: 10px 0;
-    }
-    #adminControls input {
-      padding: 8px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      width: 200px;
-      margin-right: 5px;
+    #closeChoose, #closePayment {
+      position: absolute;
+      right: 15px;
+      top: 10px;
+      background: #ff4d4d;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      font-weight: bold;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -106,117 +100,119 @@
 
 <header>🛍️ Available Products</header>
 
-<!-- Admin login area (optional, for delete/mark sold) -->
-<div id="adminControls">
-  <input type="password" id="adminPassword" placeholder="Admin Password">
-  <button onclick="setAdmin()">Login as Admin</button>
+<div id="productContainer"></div>
+
+<!-- 🪙 Choose Payment Modal -->
+<div id="chooseModal">
+  <div id="chooseContent">
+    <button id="closeChoose" onclick="closeChoose()">✖</button>
+    <h2>Select Payment Option</h2>
+    <p>Choose your preferred payment method:</p>
+    <button id="choosePaystack" style="background:#007bff;">💳 Secure Online (Card/MoMo)</button>
+    <button id="chooseAlternate" style="background:#ff9800;">🔗 Alternate Payment Link</button>
+  </div>
 </div>
 
-<main id="products"></main>
-
-<iframe id="paymentFrame"></iframe>
+<!-- 💳 Payment Frame Modal -->
+<div id="paymentModal">
+  <div id="paymentContent">
+    <button id="closePayment" onclick="closePayment()">✖</button>
+    <iframe id="paymentFrame"></iframe>
+  </div>
+</div>
 
 <script>
-  let ADMIN_PASSWORD = "";
-  const productContainer = document.getElementById("products");
-  const frame = document.getElementById("paymentFrame");
+  let products = [];
+  let selectedProduct = null;
 
-  // Set admin mode
-  function setAdmin() {
-    const pw = document.getElementById("adminPassword").value.trim();
-    if (!pw) return alert("Enter password");
-    ADMIN_PASSWORD = pw;
-    alert("✅ Admin mode enabled");
-    loadProducts();
+  // Fetch and render products
+  async function loadProducts() {
+    try {
+      const res = await fetch('/api/products');
+      products = await res.json();
+      renderProducts();
+    } catch (err) {
+      console.error('Error loading products:', err);
+    }
   }
 
-  // Load all products
-  function loadProducts() {
-    fetch("/api/products")
-      .then(res => res.json())
-      .then(products => {
-        productContainer.innerHTML = "";
-        products.forEach(p => {
-          const card = document.createElement("div");
-          card.className = `product ${p.sold ? "sold" : ""}`;
-          card.innerHTML = `
-            <h3>${p.name}</h3>
-            <p>${p.desc || ""}</p>
-            <div class="price">₵${p.price}</div>
-            ${
-              p.sold
-                ? `<span style="color:red; font-weight:bold;">🚫 SOLD OUT</span>`
-                : `
-                  <button class="buy-btn" onclick="choosePayment('${p.id}')">Buy Now</button>
-                `
-            }
-            ${
-              ADMIN_PASSWORD
-                ? `
-                  <button class="admin-btn" onclick="deleteProduct('${p.id}')">🗑️ Delete</button>
-                  ${
-                    !p.sold
-                      ? `<button class="mark-btn" onclick="markSold('${p.id}')">✅ Mark as Sold</button>`
-                      : ""
-                  }
-                `
-                : ""
-            }
-          `;
-          productContainer.appendChild(card);
-        });
+  function renderProducts() {
+    const container = document.getElementById('productContainer');
+    container.innerHTML = '';
+    products.forEach(p => {
+      const div = document.createElement('div');
+      div.className = 'product';
+      div.innerHTML = `
+        ${p.sold ? '<div class="sold-banner">SOLD OUT</div>' : ''}
+        <h3>${p.name}</h3>
+        <p>${p.desc || ''}</p>
+        <strong>Price:</strong> ${p.price}<br>
+        ${!p.sold ? `<button onclick="openPaymentChoice('${p.id}')">Buy Now</button>` : ''}
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  function openPaymentChoice(id) {
+    selectedProduct = products.find(p => p.id === id);
+    if (!selectedProduct) return;
+    document.getElementById('chooseModal').style.display = 'flex';
+  }
+
+  document.getElementById('choosePaystack').onclick = async () => {
+    if (!selectedProduct) return;
+    closeChoose();
+    try {
+      const email = prompt("Enter your email for receipt:");
+      if (!email) return alert("Email required to continue.");
+      const res = await fetch('/api/paystack/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          amount: selectedProduct.price.replace(/[^\d]/g, ''), // numeric only
+          productId: selectedProduct.id
+        })
       });
+      const data = await res.json();
+      if (data.authorization_url) {
+        openInDashboard(data.authorization_url);
+      } else {
+        alert("Payment failed to initialize.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error starting payment.");
+    }
+  };
+
+  document.getElementById('chooseAlternate').onclick = () => {
+    if (!selectedProduct) return;
+    closeChoose();
+    if (selectedProduct.alternatePayment)
+      openInDashboard(selectedProduct.alternatePayment);
+    else
+      alert("No alternate payment link available.");
+  };
+
+  function openInDashboard(url) {
+    const frame = document.getElementById('paymentFrame');
+    frame.src = url;
+    document.getElementById('paymentModal').style.display = 'flex';
   }
 
-  // Buyer chooses payment method
-  function choosePayment(id) {
-    fetch("/api/products")
-      .then(res => res.json())
-      .then(products => {
-        const product = products.find(p => p.id === id);
-        if (!product) return alert("Product not found");
-        if (product.sold) return alert("❌ Product already sold");
-
-        const choice = confirm(`Would you like to use the main checkout? (OK = Main, Cancel = Alternate)`);
-        const method = choice ? "paystack" : "direct";
-        openPayment(product, method);
-      });
+  function closeChoose() {
+    document.getElementById('chooseModal').style.display = 'none';
   }
 
-  // Open payment inside iframe
-  function openPayment(product, method) {
-    frame.style.display = "block";
-    frame.src = method === "paystack" ? product.onlinePayment : product.alternatePayment;
-    window.scrollTo({ top: frame.offsetTop, behavior: "smooth" });
+  function closePayment() {
+    document.getElementById('paymentModal').style.display = 'none';
+    document.getElementById('paymentFrame').src = '';
   }
 
-  // Delete product (admin)
-  function deleteProduct(id) {
-    if (!confirm("Are you sure you want to delete this product?")) return;
-    fetch(`/api/delete/${id}`, { method: "DELETE" })
-      .then(() => {
-        alert("🗑️ Deleted");
-        loadProducts();
-      });
-  }
-
-  // Mark as sold (admin)
-  function markSold(id) {
-    fetch(`/api/mark-sold/${id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: ADMIN_PASSWORD })
-    })
-      .then(() => {
-        alert("✅ Marked as sold");
-        loadProducts();
-      });
-  }
-
-  // Live auto-refresh (poll every 8s)
-  setInterval(loadProducts, 8000);
+  // Auto-refresh product list every 30s
+  setInterval(loadProducts, 30000);
   loadProducts();
 </script>
-
 </body>
 </html>
