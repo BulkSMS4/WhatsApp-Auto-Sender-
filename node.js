@@ -29,7 +29,7 @@ const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET || "PASTE_YOUR_PAYSTACK_SECR
 // Admin
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Forgetme";
 const ADMIN_NAME = process.env.ADMIN_NAME || "FATI IBRAHIM";
-const ADMIN_PHONE = process.env.ADMIN_PHONE || "0593231752";
+const ADMIN_PHONE = process.env.ADMIN_PHONE || "+233593231752";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "johnofosu20@gmail.com";
 
 // WhatsApp (Meta Cloud API)
@@ -37,8 +37,8 @@ const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || "EAAbnZCZA0lZBioBPZC1Bl4LKG
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || "768962646310363";
 
 // Telegram
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "PASTE_YOUR_TELEGRAM_BOT_TOKEN_HERE";
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "PASTE_YOUR_TELEGRAM_CHAT_ID_HERE";
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8003409315:AAEVIPsOYnF8mBaT8l-kmzWucHUTu9Yo8AY";
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "8085649636";
 
 // SMTP Email
 const SMTP_HOST = process.env.SMTP_HOST || "PASTE_YOUR_SMTP_HOST_HERE";
