@@ -1,7 +1,7 @@
 {
   "name": "whatsapp-auto-sender",
   "version": "1.0.0",
-  "description": "Automated WhatsApp message sender dashboard",
+  "description": "Automated WhatsApp message sender dashboard (no Paystack)",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -11,8 +11,7 @@
     "express": "^4.19.2",
     "body-parser": "^1.20.2",
     "node-fetch": "^3.3.2",
-    "nodemailer": "^6.9.4",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.4.5"
   },
   "engines": {
     "node": ">=18.x"
