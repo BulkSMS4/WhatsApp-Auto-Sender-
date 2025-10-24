@@ -1,9 +1,8 @@
-/* server.js — Cleaned version for Render deployment
- - File storage: products.json, buyers.json
+/* server.js — Version without Paystack
+ - file storage: products.json, buyers.json
  - Buyer receives WhatsApp + Email
  - Admin receives WhatsApp + Telegram + Email
- - Paystack init + webhook (verifies signature)
- - AUTO_MESSAGES env toggle for reminders
+ - AUTO_MESSAGES env toggle for 10s reminders
 */
 
 import express from "express";
@@ -12,7 +11,6 @@ import path from "path";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
-import crypto from "crypto";
 import nodemailer from "nodemailer";
 
 dotenv.config();
@@ -26,23 +24,21 @@ const productsFile = path.join(__dirname, "products.json");
 const buyersFile = path.join(__dirname, "buyers.json");
 
 const PORT = process.env.PORT || 5000;
-const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET || "";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Forgetme";
 
-const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;EAAbnZCZA0lZBioBPZC1Bl4LKGbmeamRE9s5NZC9BUzxfX1f4agMEZBIYvMX04Wv8C5K0ZBvkg78azsQInnIZAWAFq7SQzfSgtRIBheqXobkC73i3aYWfQH6z70Mq8uhoBjOvlzgdj1dYJf0nvqatB1UNcO8zQmNxhDor0Ptlp153BSiiZBc4j4ZBJCpbPYddnuEdT1PZBpHFDgZD
-const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;768962646310363
-const ADMIN_PHONE = process.env.ADMIN_PHONE || "+233593231752";
-const ADMIN_NAME = process.env.ADMIN_NAME || "Admin";
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || "EAAbnZCZA0lZBioBPZC1Bl4LKGbmeamRE9s5NZC9BUzxfX1f4agMEZBIYvMX04Wv8C5K0ZBvkg78azsQInnIZAWAFq7SQzfSgtRIBheqXobkC73i3aYWfQH6z70Mq8uhoBjOvlzgdj1dYJf0nvqatB1UNcO8zQmNxhDor0Ptlp153BSiiZBc4j4ZBJCpbPYddnuEdT1PZBpHFDgZD";
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || "";
+const ADMIN_PHONE = process.env.ADMIN_PHONE || "+233593231792";
+const ADMIN_NAME = process.env.ADMIN_NAME || "FATI_IBRAHIM";
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;8003409315:AAEVIPsOYnF8mBaT8l-kmzWucHUTu9Yo8AY
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;8085649636
-
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8003409315:AAEVIPsOYnF8mBaT8l-kmzWucHUTu9Yo8AY";
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "8085649636";
 
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
 const SMTP_PORT = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 465;
 const SMTP_USER = process.env.SMTP_USER || "";
 const SMTP_PASS = process.env.SMTP_PASS || "";
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "johnofosu20@gmail.com";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
 
 const AUTO_MESSAGES = (process.env.AUTO_MESSAGES || "true").toLowerCase() !== "false";
 
@@ -56,16 +52,14 @@ function readJSON(filePath) {
     return [];
   }
 }
-
 function writeJSON(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
-// Load initial data
 let products = readJSON(productsFile);
 let buyers = readJSON(buyersFile);
 
-// ---------- email setup ----------
+// ---------- Email setup ----------
 let transporter = null;
 if (SMTP_USER && SMTP_PASS) {
   transporter = nodemailer.createTransport({
@@ -75,7 +69,7 @@ if (SMTP_USER && SMTP_PASS) {
     auth: { user: SMTP_USER, pass: SMTP_PASS },
   });
 } else {
-  console.log("⚠️ Email not configured. Emails will be skipped.");
+  console.log("⚠️ Email not configured (SMTP_USER / SMTP_PASS missing). Emails will be skipped.");
 }
 
 // ---------- WhatsApp helper ----------
@@ -143,9 +137,9 @@ async function sendEmail(to, subject, html) {
 
 // -------------------- ROUTES --------------------
 
-// Root route
+// ✅ Root route (to fix 502 and show app running)
 app.get("/", (req, res) => {
-  res.send("✅ WhatsApp Dashboard API is running.");
+  res.send("✅ WhatsApp Dashboard API is running fine.");
 });
 
 // Get all products
@@ -154,7 +148,7 @@ app.get("/api/products", (req, res) => {
   res.json(products);
 });
 
-// Add product (admin)
+// Add product
 app.post("/api/add-product", (req, res) => {
   const { password, name, desc, price, onlinePayment, alternatePayment } = req.body;
   if (password !== ADMIN_PASSWORD) return res.status(403).json({ error: "Unauthorized" });
@@ -173,27 +167,78 @@ app.post("/api/add-product", (req, res) => {
   res.json({ success: true, product: newProduct });
 });
 
-// Other routes (edit, delete, mark-sold, Paystack, save-buyer, webhook) remain the same
-// You can copy them from your original server.js
+// Delete product
+app.delete("/api/delete/:id", (req, res) => {
+  const { password } = req.body;
+  if (password !== ADMIN_PASSWORD) return res.status(403).json({ error: "Unauthorized" });
 
-// -------------------- Auto reminder loop --------------------
+  products = readJSON(productsFile).filter((p) => p.id !== req.params.id);
+  writeJSON(productsFile, products);
+  res.json({ success: true });
+});
+
+// Save buyer
+app.post("/api/save-buyer", async (req, res) => {
+  try {
+    const { name, phone, email, address, productId } = req.body;
+    if (!name || !phone || !address || !productId)
+      return res.status(400).json({ error: "Missing fields" });
+
+    products = readJSON(productsFile);
+    const product = products.find((p) => p.id === productId);
+    if (!product) return res.status(404).json({ error: "Product not found" });
+
+    const buyer = {
+      id: Date.now().toString(),
+      name,
+      phone,
+      email,
+      address,
+      product: product.name,
+      productId,
+      date: new Date().toLocaleString(),
+    };
+
+    buyers = readJSON(buyersFile);
+    buyers.push(buyer);
+    writeJSON(buyersFile, buyers);
+
+    const buyerMsg = `✅ Hi ${name}, we received your order for *${product.name}*. We'll contact you soon.`;
+    await sendWhatsApp(phone, buyerMsg);
+    if (email) await sendEmail(email, `Order Received: ${product.name}`, `<p>${buyerMsg}</p>`);
+
+    const adminMsg = `📦 New Order\nProduct: ${product.name}\nBuyer: ${name}\nPhone: ${phone}\nEmail: ${email || "N/A"}\nAddress: ${address}`;
+    await sendWhatsApp(ADMIN_PHONE, adminMsg);
+    await sendTelegram(adminMsg);
+    if (ADMIN_EMAIL) await sendEmail(ADMIN_EMAIL, `New Order: ${product.name}`, `<pre>${adminMsg}</pre>`);
+
+    res.json({ success: true, buyer });
+  } catch (err) {
+    console.error("save-buyer error:", err);
+    res.status(500).json({ error: "Failed to save buyer" });
+  }
+});
+
+// Get buyers (admin)
+app.get("/api/get-buyers", (req, res) => {
+  const { password } = req.query;
+  if (password !== ADMIN_PASSWORD) return res.status(403).json({ error: "Unauthorized" });
+  buyers = readJSON(buyersFile);
+  res.json({ success: true, buyers });
+});
+
+// Auto reminders
 if (AUTO_MESSAGES) {
   setInterval(async () => {
-    try {
-      buyers = readJSON(buyersFile);
-      products = readJSON(productsFile);
-      for (const b of buyers) {
-        const product = products.find((p) => p.id === b.productId);
-        if (!product || product.sold) continue;
-        const msg = `👋 Hi ${b.name}, your order for *${product.name}* is pending.`;
-        if (b.phone) await sendWhatsApp(b.phone, msg).catch(() => {});
-      }
-    } catch (err) {
-      console.error("Auto reminder loop error:", err);
+    buyers = readJSON(buyersFile);
+    products = readJSON(productsFile);
+    for (const b of buyers) {
+      const product = products.find((p) => p.id === b.productId);
+      if (!product || product.sold) continue;
+      const msg = `👋 Hi ${b.name}, your order for *${product.name}* is still pending. Please complete payment.`;
+      await sendWhatsApp(b.phone, msg);
     }
-  }, 60000); // every 60 seconds (better for production)
-} else {
-  console.log("Auto messages disabled (AUTO_MESSAGES=false)");
+  }, 10000);
 }
 
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
