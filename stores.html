@@ -3,128 +3,82 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🛍️ Online Store — Foster Marketplace</title>
+<title>🛍️ Foster Marketplace</title>
 <style>
-  body {
-    font-family: "Poppins", sans-serif;
-    background: #f9f9f9;
-    margin: 0;
-    padding: 0;
-  }
-  header {
-    background: #25D366;
-    color: white;
-    text-align: center;
-    padding: 1rem;
-    font-size: 1.6em;
-    font-weight: bold;
-  }
-  main {
-    max-width: 1100px;
-    margin: 20px auto;
-    padding: 10px;
-  }
-  .category {
-    margin-top: 30px;
-  }
-  .category h2 {
-    background: #25D366;
-    color: white;
-    padding: 10px;
-    border-radius: 8px;
-  }
-  .products {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 15px;
-  }
-  .product {
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    overflow: hidden;
-    transition: transform .2s ease;
-    position: relative;
-  }
-  .product:hover {
-    transform: scale(1.02);
-  }
-  .product img {
-    width: 100%;
-    height: 180px;
-    object-fit: cover;
-  }
-  .info {
-    padding: 10px;
-  }
-  .info h3 {
-    margin: 0;
-    font-size: 1.1em;
-    color: #333;
-  }
-  .info p {
-    color: #555;
-    font-size: 0.9em;
-    margin: 6px 0;
-  }
-  .price {
-    color: #25D366;
-    font-weight: bold;
-  }
-  .buy-btn {
-    background: #25D366;
-    color: white;
-    border: none;
-    width: 100%;
-    padding: 10px;
-    cursor: pointer;
-    border-radius: 0 0 10px 10px;
-    font-weight: bold;
-  }
-  .buy-btn:hover {
-    background: #1ebe5c;
-  }
-  .delivery-form {
-    margin-top: 10px;
-    padding: 10px;
-    border: 1px solid #25D366;
-    border-radius: 8px;
-    background-color: #f0fff4;
-  }
-  .delivery-form input, .delivery-form textarea, .delivery-form select {
-    width: 100%;
-    padding: 6px;
-    margin: 4px 0 10px 0;
-    border-radius: 4px;
-    border: 1px solid #ccc;
-  }
-  .delivery-form button {
-    background: #25D366;
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    cursor: pointer;
-    border-radius: 4px;
-    margin-right: 5px;
-    font-weight: bold;
-  }
-  .delivery-form button:hover {
-    background: #1ebe5c;
-  }
-  .paymentLink a {
-    color: #25D366;
-    font-weight: bold;
-    text-decoration: none;
-  }
+body {font-family:"Poppins",sans-serif; background:#f9f9f9; margin:0; padding:0;}
+header {background:#25D366;color:white;text-align:center;padding:1rem;font-size:1.6em;font-weight:bold;}
+main {max-width:1100px;margin:20px auto;padding:10px;}
+.category {margin-top:30px;}
+.category h2 {background:#25D366;color:white;padding:10px;border-radius:8px;}
+.products {display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:15px;}
+.product {background:white;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.1);overflow:hidden;transition:transform .2s ease; position: relative;}
+.product:hover {transform:scale(1.02);}
+.product img {width:100%; height:180px; object-fit:cover;}
+.info {padding:10px;}
+.info h3 {margin:0; font-size:1.1em; color:#333;}
+.info p {color:#555; font-size:0.9em; margin:6px 0;}
+.price {color:#25D366; font-weight:bold;}
+.buy-btn {background:#25D366; color:white; border:none; width:100%; padding:10px; cursor:pointer; border-radius:0 0 10px 10px; font-weight:bold;}
+.buy-btn:hover {background:#1ebe5c;}
+
+/* Delivery Form Modal */
+#deliveryFormModal {display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:999; align-items:center; justify-content:center;}
+#deliveryFormModal .form-content {background:white; border-radius:10px; padding:20px; width:90%; max-width:480px; max-height:90vh; overflow:auto; position:relative;}
+#deliveryFormModal h3 {margin-top:0;}
+#deliveryFormModal label {display:block; margin-top:10px;}
+#deliveryFormModal input, #deliveryFormModal select, #deliveryFormModal textarea {width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; margin-top:4px;}
+#deliveryFormModal button {margin-top:12px; background:#25D366; color:white; padding:10px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;}
+#deliveryFormModal button.secondary {background:#ccc; color:#111;}
+
+/* Floating tracking modal */
+#trackBtn {position:fixed; top:12px; right:12px; background:#25D366; color:#fff; border:none; padding:10px 12px; border-radius:6px; cursor:pointer; font-weight:bold; z-index:1000;}
+#trackingModal {display:none; position:fixed; top:50px; right:12px; width:250px; background:#fff; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.15); padding:12px; z-index:1000; font-size:0.9em;}
+#trackingModal h4 {margin:0 0 8px 0; font-size:1em;}
+#trackingModal input {width:100%; padding:6px; border-radius:6px; border:1px solid #ccc;}
+#trackingModal button {margin-top:6px; width:100%; padding:6px; background:#25D366; color:#fff; border:none; border-radius:6px; font-weight:bold;}
+#trackingModal p {margin-top:6px; font-weight:bold; font-size:0.85em;}
 </style>
 </head>
 <body>
 
 <header>🛍️ Foster Marketplace — Explore Categories</header>
 
+<!-- Floating Track Package -->
+<button id="trackBtn" onclick="toggleTracking()">📦 Track Package</button>
+
+<!-- Non-intrusive tracking modal -->
+<div id="trackingModal">
+  <h4>Track Your Package</h4>
+  <input type="text" id="trackingId" placeholder="Enter Tracking ID">
+  <button onclick="checkTracking()">Check</button>
+  <p id="trackingResult"></p>
+</div>
+
 <main id="storeContainer">
   <div id="loading">Loading store products...</div>
 </main>
+
+<!-- Delivery Form Modal -->
+<div id="deliveryFormModal">
+  <div class="form-content">
+    <h3>Delivery Information</h3>
+    <input type="hidden" id="currentProductId">
+    <label>Name</label>
+    <input type="text" id="buyerName" placeholder="Full Name" required>
+    <label>Phone Number</label>
+    <input type="text" id="buyerPhone" placeholder="e.g. +233501234567" required>
+    <label>Address</label>
+    <textarea id="buyerAddress" placeholder="Full delivery address" required></textarea>
+    <label>Delivery Type</label>
+    <select id="deliveryType">
+      <option>Standard</option>
+      <option>Express</option>
+    </select>
+    <button id="submitDelivery">Submit & Get Payment Link</button>
+    <button class="secondary" onclick="closeDeliveryForm()">Cancel</button>
+    <p id="deliveryMsg" style="margin-top:10px; font-weight:bold;"></p>
+  </div>
+</div>
 
 <script>
 async function loadStore() {
@@ -133,24 +87,24 @@ async function loadStore() {
   const container = document.getElementById('storeContainer');
   container.innerHTML = "";
 
-  if (!data || data.length === 0) {
+  if (!data || data.length===0) {
     container.innerHTML = "<p>No products found.</p>";
     return;
   }
 
   const categories = {};
   data.forEach(p => {
-    if (!categories[p.category]) categories[p.category] = [];
+    if(!categories[p.category]) categories[p.category] = [];
     categories[p.category].push(p);
   });
 
-  for (const [category, items] of Object.entries(categories)) {
+  for(const [category, items] of Object.entries(categories)){
     const catDiv = document.createElement('div');
     catDiv.classList.add('category');
     catDiv.innerHTML = `<h2>${category}</h2><div class="products"></div>`;
     const prodContainer = catDiv.querySelector('.products');
 
-    for (const p of items) {
+    for(const p of items){
       const prodDiv = document.createElement('div');
       prodDiv.classList.add('product');
       prodDiv.innerHTML = `
@@ -158,105 +112,81 @@ async function loadStore() {
         <div class="info">
           <h3>${p.name}</h3>
           <p>${p.desc}</p>
-          <p class="price">${await convertPrice(p.price)}</p>
+          <p class="price">$${p.price}</p>
         </div>
-        <button class="buy-btn" onclick="openBuy('${p.id}')">🛒 Buy Now</button>
+        <button class="buy-btn" onclick="openDeliveryForm('${p.id}')">🛒 Buy Now</button>
       `;
       prodContainer.appendChild(prodDiv);
     }
+
     container.appendChild(catDiv);
   }
 }
 
-async function convertPrice(price) {
-  try {
-    const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-    const rates = await res.json();
-    const userLocale = Intl.DateTimeFormat().resolvedOptions().locale;
-    const country = userLocale.split('-')[1] || 'US';
-    const currency = country === 'GH' ? 'GHS' : country === 'NG' ? 'NGN' : 'USD';
-    const converted = price * (rates.rates[currency] || 1);
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(converted);
-  } catch {
-    return `$${price}`;
-  }
+// Open delivery form
+function openDeliveryForm(productId){
+  document.getElementById('currentProductId').value = productId;
+  document.getElementById('buyerName').value='';
+  document.getElementById('buyerPhone').value='';
+  document.getElementById('buyerAddress').value='';
+  document.getElementById('deliveryMsg').innerText='';
+  document.getElementById('deliveryFormModal').style.display='flex';
 }
 
-function openBuy(id) {
-  const existingForm = document.getElementById('deliveryForm_' + id);
-  if (existingForm) {
-    existingForm.style.display = existingForm.style.display === 'none' ? 'block' : 'none';
+function closeDeliveryForm(){
+  document.getElementById('deliveryFormModal').style.display='none';
+}
+
+// Submit delivery form
+document.getElementById('submitDelivery').addEventListener('click', async ()=>{
+  const productId = document.getElementById('currentProductId').value;
+  const name = document.getElementById('buyerName').value.trim();
+  const phone = document.getElementById('buyerPhone').value.trim();
+  const address = document.getElementById('buyerAddress').value.trim();
+  const type = document.getElementById('deliveryType').value;
+
+  if(!name || !phone || !address) {
+    alert("Please fill all fields!");
     return;
   }
 
-  const prodDiv = document.querySelector(`.product button[onclick="openBuy('${id}')"]`).parentElement;
+  const res = await fetch('/api/buy', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ productId, name, phone, address, type })
+  });
+  const data = await res.json();
+  if(data.success){
+    document.getElementById('deliveryMsg').innerText = `✔ Delivery info saved! Tracking ID: ${data.trackingId}`;
+    window.open(data.paymentLink, '_blank');
+  } else {
+    document.getElementById('deliveryMsg').innerText = '❌ Error: ' + (data.error || 'Failed');
+  }
+});
 
-  const formDiv = document.createElement('div');
-  formDiv.id = 'deliveryForm_' + id;
-  formDiv.className = 'delivery-form';
-  formDiv.innerHTML = `
-    <h4>📦 Delivery Form</h4>
-    <label>Name:<input type="text" id="name_${id}" required></label>
-    <label>Phone:<input type="text" id="phone_${id}" required></label>
-    <label>Address:<textarea id="address_${id}" required></textarea></label>
-    <label>Delivery Type:
-      <select id="type_${id}" required>
-        <option value="">Select type</option>
-        <option value="standard">Standard</option>
-        <option value="express">Express</option>
-      </select>
-    </label>
-    <button onclick="submitDelivery('${id}')">Submit Form</button>
-    <button onclick="document.getElementById('deliveryForm_${id}').style.display='none'">Cancel</button>
-  `;
-
-  prodDiv.appendChild(formDiv);
+// Toggle floating tracking modal
+function toggleTracking() {
+  const modal = document.getElementById('trackingModal');
+  modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
 }
 
-async function submitDelivery(id) {
-  const name = document.getElementById(`name_${id}`).value.trim();
-  const phone = document.getElementById(`phone_${id}`).value.trim();
-  const address = document.getElementById(`address_${id}`).value.trim();
-  const type = document.getElementById(`type_${id}`).value;
-
-  if (!name || !phone || !address || !type) {
-    alert("⚠️ All fields are required!");
-    return;
-  }
-
-  try {
-    const res = await fetch('/api/delivery', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId: id, name, phone, address, type })
-    });
-
-    if (res.ok) {
-      alert('✅ Delivery form submitted!');
-
-      const prodDiv = document.querySelector(`.product button[onclick="openBuy('${id}')"]`).parentElement;
-      let paymentLink = prodDiv.querySelector('.paymentLink');
-      if (!paymentLink) {
-        paymentLink = document.createElement('p');
-        paymentLink.className = 'paymentLink';
-        paymentLink.innerHTML = `<a href="/payment?product=${id}" target="_blank">💳 Proceed to Payment</a>`;
-        prodDiv.appendChild(paymentLink);
-      } else {
-        paymentLink.style.display = 'block';
-      }
-
-      document.getElementById('deliveryForm_' + id).style.display = 'none';
-    } else {
-      alert('❌ Submission failed!');
-    }
-  } catch (err) {
-    alert('❌ Error submitting form: ' + err);
+// Check tracking
+async function checkTracking(){
+  const id=document.getElementById('trackingId').value.trim();
+  const resEl=document.getElementById('trackingResult');
+  if(!id){ alert('Enter Tracking ID'); return; }
+  try{
+    const res=await fetch(`/api/tracking/${id}`);
+    if(!res.ok) throw new Error('Not found');
+    const data=await res.json();
+    resEl.innerHTML=`Status: <strong>${data.status}</strong><br>Expected: <strong>${data.expectedDelivery}</strong>`;
+  }catch(e){
+    resEl.innerText='❌ Tracking ID not found';
   }
 }
 
+// Initial load
 loadStore();
-setInterval(loadStore, 10000);
 </script>
-
 </body>
 </html>
