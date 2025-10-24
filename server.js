@@ -25,17 +25,17 @@ app.use(express.urlencoded({ extended: true }));
 // ---------- ENV (keep exactly what you provided) ----------
 const PORT = process.env.PORT || 5000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Forgetme";
-const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || "";
-const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || "";
-const ADMIN_PHONE = process.env.ADMIN_PHONE || "";
-const ADMIN_NAME = process.env.ADMIN_NAME || "";
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "";
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || "EAAbnZCZA0lZBioBPZC1Bl4LKGbmeamRE9s5NZC9BUzxfX1f4agMEZBIYvMX04Wv8C5K0ZBvkg78azsQInnIZAWAFq7SQzfSgtRIBheqXobkC73i3aYWfQH6z70Mq8uhoBjOvlzgdj1dYJf0nvqatB1UNcO8zQmNxhDor0Ptlp153BSiiZBc4j4ZBJCpbPYddnuEdT1PZBpHFDgZD";
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || "768962646310363";
+const ADMIN_PHONE = process.env.ADMIN_PHONE || "+233593231752";
+const ADMIN_NAME = process.env.ADMIN_NAME || "FATI IBRAHIM";
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8003409315:AAEVIPsOYnF8mBaT8l-kmzWucHUTu9Yo8AY";
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "8085649636";
 const SMTP_HOST = process.env.SMTP_HOST || "";
 const SMTP_PORT = process.env.SMTP_PORT || "";
-const SMTP_USER = process.env.SMTP_USER || "";
-const SMTP_PASS = process.env.SMTP_PASS || "";
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
+const SMTP_USER = process.env.SMTP_USER || "johnofosu20@gmail.com";
+const SMTP_PASS = process.env.SMTP_PASS || "xerl ulwp moat hnrp";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "johnofosu20@gmail.com";
 const WHATSAPP_GROUP_IDS = (process.env.WHATSAPP_GROUP_IDS || "").split(",").map(s=>s.trim()).filter(Boolean);
 const AUTO_MESSAGES = (process.env.AUTO_MESSAGES || "false").toLowerCase() === "true";
 // You can set WEBHOOK_VERIFY_TOKEN in .env if you want webhook verification
