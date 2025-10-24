@@ -1,443 +1,309 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>ChatSender — Admin</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:400,600,700&display=swap">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChatSender — Admin Dashboard</title>
+<link href="https://fonts.googleapis.com/css?family=Inter:400,600,700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --green: #25D366;
-    --green-dark: #128C7E;
-    --bg: #f0f2f1;
-    --card: #fff;
-    --muted: #6b7280;
-  }
-  body{font-family:Inter, Arial, sans-serif;background:var(--bg);margin:0;color:#111}
-  header{background:var(--green);color:#fff;padding:14px;text-align:center;font-weight:700}
-  .wrap{max-width:1100px;margin:18px auto;padding:12px}
-  .grid{display:grid;grid-template-columns:300px 1fr;gap:12px}
-  /* menu loaded from separate file via iframe positioned absolutely */
-  iframe#menuFrame { position: fixed; left: 10px; top: 70px; width: 260px; height: calc(100vh - 90px); border: none; z-index: 999; box-shadow: 0 8px 24px rgba(0,0,0,0.12); border-radius: 10px; }
-  .card{background:var(--card);border-radius:10px;padding:14px;box-shadow:0 6px 18px rgba(0,0,0,0.06);margin-bottom:12px}
-  .small{font-size:13px;color:var(--muted)}
-  input,textarea,select,button{width:100%;padding:10px;border-radius:8px;border:1px solid #e6e6e6;box-sizing:border-box;margin-top:8px}
-  textarea{min-height:90px}
-  button{background:var(--green);color:#fff;border:0;padding:10px;border-radius:8px;cursor:pointer;font-weight:700}
-  button.secondary{background:#f3f4f6;color:#111}
-  .products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:12px}
-  .prod{border:1px solid #eee;padding:10px;border-radius:8px;background:#fff}
-  .prod img{width:100%;height:160px;object-fit:cover;border-radius:6px}
-  .label{display:inline-block;background:#f0fdf4;color:#064e3b;padding:6px 8px;border-radius:999px;font-size:12px;margin-top:8px}
-  .actions{display:flex;gap:8px;margin-top:8px}
-  .muted{color:var(--muted)}
-  .footer{background:#0f1720;color:#fff;padding:12px;text-align:center;border-radius:8px;margin-top:12px}
+:root {
+  --green: #25D366;
+  --bg: #f9fafb;
+  --card: #fff;
+  --muted: #6b7280;
+}
+
+body {
+  font-family: 'Inter', Arial, sans-serif;
+  background: var(--bg);
+  color: #111;
+  margin: 0;
+}
+
+header {
+  background: var(--green);
+  color: #fff;
+  padding: 16px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.2rem;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.wrap {
+  max-width: 1200px;
+  margin: 20px auto;
+  padding: 0 16px;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
+
+.card h3 {
+  margin-bottom: 8px;
+  font-size: 1.1rem;
+  color: #111;
+}
+
+.small {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+input, textarea, select, button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 6px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+textarea { min-height: 90px; }
+
+button {
+  background: var(--green);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:hover { opacity: 0.9; }
+
+button.secondary {
+  background: #f3f4f6;
+  color: #111;
+  border: 1px solid #d1d5db;
+}
+
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill,minmax(240px,1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.prod {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: transform 0.2s;
+}
+
+.prod:hover { transform: translateY(-2px); }
+
+.prod img {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+}
+
+.label {
+  display: inline-block;
+  background: #f0fdf4;
+  color: #064e3b;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.footer {
+  text-align: center;
+  padding: 16px;
+  background: #0f1720;
+  color: #fff;
+  border-radius: 8px;
+  margin-top: 20px;
+  font-size: 13px;
+}
+
+#previewModal {
+  position: fixed;
+  left:0; top:0;
+  width: 100%; height: 100%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.5);
+  z-index: 10000;
+}
+
+#previewModalContent {
+  background:#fff;
+  border-radius:12px;
+  padding:20px;
+  max-width: 700px;
+  width: 90%;
+  max-height: 90vh;
+  overflow:auto;
+}
 </style>
 </head>
 <body>
 <header>📦 ChatSender — Admin Dashboard</header>
 
-<!-- External menu (separate file). Place menu.html in public/ -->
-<iframe id="menuFrame" src="menu.html"></iframe>
-
 <div class="wrap">
-  <div class="grid">
-    <div>
-      <!-- Add product / jobs card -->
-      <div class="card">
-        <h3>Add Product / Job</h3>
-        <div class="small">Choose category and upload product. Use Jobs category to post job listings.</div>
+  <!-- Add Product / Job Card -->
+  <div class="card">
+    <h3>Add Product / Job</h3>
+    <div class="small">Select category. Use "Find Jobs" for job listings.</div>
+    <label>Category</label>
+    <select id="category">
+      <option>Electronics</option><option>Fashion</option><option>Home</option><option>Accessories</option>
+      <option>Foods</option><option>Rings</option><option>Toys</option><option>Cars</option><option>Trucks</option>
+      <option>Find Jobs</option>
+    </select>
 
-        <label>Category</label>
-        <select id="category">
-          <option>Electronics</option><option>Fashion</option><option>Home</option><option>Accessories</option>
-          <option>Foods</option><option>Rings</option><option>Toys</option><option>Cars</option><option>Trucks</option>
-          <option>Find Jobs</option>
-        </select>
-
-        <div id="productFields">
-          <label>Product Name</label>
-          <input id="productName" placeholder="Product name">
-
-          <label>Product Description</label>
-          <textarea id="productDesc" placeholder="Short description"></textarea>
-
-          <label>Price (USD)</label>
-          <input id="productPrice" type="number" step="0.01" placeholder="e.g. 25.00">
-
-          <label>Product Website (visible)</label>
-          <input id="productWebsite" placeholder="https://your-site.com/item">
-
-          <label>Custom Payment Link (hidden; will open in iframe for buyers)</label>
-          <input id="productPayment" placeholder="https://payment-provider.com/pay/xyz">
-
-          <label>Upload High-quality Image</label>
-          <input id="productImage" type="file" accept="image/*">
-        </div>
-
-        <div id="jobFields" style="display:none;margin-top:12px">
-          <label>Job Title</label>
-          <input id="jobTitle" placeholder="e.g. Sales Executive">
-
-          <label>Job Description</label>
-          <textarea id="jobDesc" placeholder="Job responsibilities, skills"></textarea>
-
-          <label>Location</label>
-          <input id="jobLocation" placeholder="City, Country">
-
-          <label>Salary</label>
-          <input id="jobSalary" placeholder="e.g. 1500 GHS">
-
-          <label>WhatsApp Contact Link (paste full wa.me or phone)</label>
-          <input id="jobContact" placeholder="e.g. https://wa.me/233501234567">
-        </div>
-
-        <div style="display:flex;gap:8px;margin-top:12px">
-          <input id="adminPass" placeholder="Admin password (stored in localStorage)">
-          <button id="btnSave" class="btn">Save</button>
-        </div>
-
-        <div id="saveResult" class="small muted" style="margin-top:8px"></div>
-      </div>
-
-      <!-- Bulk send card -->
-      <div class="card">
-        <h3>Bulk Sender</h3>
-        <div class="small">Paste numbers (comma or newline separated) or use subscribers on server.</div>
-        <textarea id="bulkNumbers" rows="4" placeholder="233501234567,233599999999"></textarea>
-        <label>Message (use {product},{price},{link},{category})</label>
-        <textarea id="bulkMessage" rows="4">Check out our {product} for {price} — {link}</textarea>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button id="btnSendBulk">Send Bulk</button>
-          <button id="btnSaveSubs" class="secondary">Save Numbers as Subscribers</button>
-        </div>
-        <div id="bulkResult" class="small muted" style="margin-top:8px"></div>
-      </div>
-
-      <!-- Subscribers & auto-send info -->
-      <div class="card">
-        <h3>Subscribers & Auto-send</h3>
-        <div class="small">Subscribers stored on server will receive rotating product posts every 10 minutes.</div>
-        <button id="btnViewSubs" class="secondary">View Subscribers</button>
-        <div id="subsList" style="margin-top:8px"></div>
-      </div>
+    <div id="productFields">
+      <label>Product Name</label>
+      <input id="productName" placeholder="Product name">
+      <label>Description</label>
+      <textarea id="productDesc" placeholder="Short description"></textarea>
+      <label>Price (USD)</label>
+      <input id="productPrice" type="number" step="0.01">
+      <label>Website</label>
+      <input id="productWebsite" placeholder="https://example.com/item">
+      <label>Payment Link</label>
+      <input id="productPayment" placeholder="https://payment.com/pay/xyz">
+      <label>Upload Image</label>
+      <input id="productImage" type="file" accept="image/*">
     </div>
 
-    <div>
-      <!-- Products list -->
-      <div class="card">
-        <h3>Products</h3>
-        <div class="small">Products appear in store grouped by category. Click preview to test store modal.</div>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <select id="filterCategory">
-            <option value="All">All</option>
-          </select>
-          <button id="btnRefresh" class="secondary">Refresh</button>
-        </div>
-        <div id="productsGrid" class="products-grid"></div>
-      </div>
-
-      <!-- Buyers and Clicks -->
-      <div class="card">
-        <h3>Buyers & Visits</h3>
-        <div style="display:flex;gap:8px">
-          <input id="buyersPass" placeholder="Admin password">
-          <button id="btnLoadBuyers" class="secondary">Load Buyers</button>
-        </div>
-        <div id="buyersWrap" style="margin-top:8px"></div>
-
-        <div style="margin-top:12px">
-          <div style="display:flex;gap:8px">
-            <select id="clickProdSelect"></select>
-            <button id="btnLoadClicks" class="secondary">Load Clicks</button>
-          </div>
-          <div id="clicksWrap" style="margin-top:8px"></div>
-        </div>
-      </div>
-
-      <!-- Messages -->
-      <div class="card">
-        <h3>Messages & Delivery Status</h3>
-        <div style="display:flex;gap:8px">
-          <input id="msgsPass" placeholder="Admin password">
-          <button id="btnLoadMsgs" class="secondary">Load Messages</button>
-        </div>
-        <div id="msgsWrap" style="margin-top:8px"></div>
-      </div>
+    <div id="jobFields" style="display:none;">
+      <label>Job Title</label>
+      <input id="jobTitle">
+      <label>Description</label>
+      <textarea id="jobDesc"></textarea>
+      <label>Location</label>
+      <input id="jobLocation">
+      <label>Salary</label>
+      <input id="jobSalary">
+      <label>WhatsApp Contact Link</label>
+      <input id="jobContact">
     </div>
+
+    <div style="display:flex; gap:8px; margin-top:12px;">
+      <input id="adminPass" placeholder="Admin password">
+      <button id="btnSave">Save</button>
+    </div>
+    <div id="saveResult" class="small muted" style="margin-top:6px;"></div>
   </div>
 
-  <div class="footer">Foster — powering ChatSender • Keep tokens private</div>
+  <!-- Products Grid -->
+  <div class="card">
+    <h3>Products</h3>
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <select id="filterCategory"><option>All</option></select>
+      <button id="btnRefresh" class="secondary">Refresh</button>
+    </div>
+    <div id="productsGrid" class="products-grid"></div>
+  </div>
 </div>
 
-<!-- Buy preview/modal for admin test -->
-<div id="previewModal" style="position:fixed;left:0;top:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:999">
-  <div style="background:#fff;border-radius:8px;padding:16px;width:92%;max-width:720px;max-height:90vh;overflow:auto">
+<!-- Preview Modal -->
+<div id="previewModal">
+  <div id="previewModalContent">
     <div id="previewContent"></div>
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button id="closePreview" class="secondary">Close</button>
-    </div>
+    <button id="closePreview" class="secondary" style="margin-top:12px;">Close</button>
   </div>
 </div>
 
 <script>
-(async function(){
-  // helpers
-  const $ = id => document.getElementById(id);
-  function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+const $ = id => document.getElementById(id);
 
-  // load initial categories into filter
-  const categories = ["All","Electronics","Fashion","Home","Accessories","Foods","Rings","Toys","Cars","Trucks","Find Jobs"];
-  const filter = $('filterCategory');
-  categories.forEach(c => filter.appendChild(new Option(c,c)));
-
-  // UI: show job fields if category Find Jobs
-  $('category').addEventListener('change', ()=> {
-    if ($('category').value === "Find Jobs") {
-      $('productFields').style.display = 'none';
-      $('jobFields').style.display = '';
-    } else {
-      $('productFields').style.display = '';
-      $('jobFields').style.display = 'none';
-    }
-  });
-
-  // load products
-  async function loadProducts() {
-    const res = await fetch('/api/products');
-    const products = await res.json();
-    renderProducts(products);
-    // populate click product select
-    const select = $('clickProdSelect');
-    select.innerHTML = '';
-    (products||[]).forEach(p => {
-      const opt = document.createElement('option'); opt.value = p.id; opt.textContent = p.name + " (" + p.category + ")";
-      select.appendChild(opt);
-    });
+$('category').addEventListener('change', ()=>{
+  if($('category').value==='Find Jobs'){
+    $('productFields').style.display='none';
+    $('jobFields').style.display='';
+  }else{
+    $('productFields').style.display='';
+    $('jobFields').style.display='none';
   }
+});
 
-  function renderProducts(products) {
-    const grid = $('productsGrid'); grid.innerHTML = '';
-    const selCat = $('filterCategory').value || 'All';
-    const list = (products||[]).filter(p => selCat === 'All' ? true : p.category === selCat);
-    for (const p of list) {
+$('btnSave').addEventListener('click', async ()=>{
+  const pass = $('adminPass').value.trim();
+  if(!pass) return alert('Enter admin password');
+
+  const fd = new FormData();
+  if($('category').value==='Find Jobs'){
+    fd.append('name',$('jobTitle').value);
+    fd.append('desc',$('jobDesc').value);
+    fd.append('price',$('jobSalary').value);
+    fd.append('category','Find Jobs');
+    fd.append('website',$('jobContact').value);
+  }else{
+    fd.append('name',$('productName').value);
+    fd.append('desc',$('productDesc').value);
+    fd.append('price',$('productPrice').value);
+    fd.append('category',$('category').value);
+    fd.append('website',$('productWebsite').value);
+    fd.append('payment',$('productPayment').value);
+    if($('productImage').files[0]) fd.append('image',$('productImage').files[0]);
+  }
+  fd.append('password',pass);
+
+  const res = await fetch('/api/upload-product',{method:'POST',body:fd});
+  const data = await res.json();
+  $('saveResult').innerText = data.success ? 'Saved ✓' : 'Error saving';
+  loadProducts();
+});
+
+async function loadProducts(){
+  const res = await fetch('/api/products');
+  const products = await res.json();
+  const grid = $('productsGrid'); grid.innerHTML='';
+  const selCat = $('filterCategory').value || 'All';
+  (products||[]).forEach(p=>{
+    if(selCat==='All'||p.category===selCat){
       const div = document.createElement('div'); div.className='prod';
       div.innerHTML = `
-        <img src="${p.image||'/placeholder.png'}" alt="${escapeHtml(p.name)}" />
-        <div style="margin-top:8px"><strong>${escapeHtml(p.name)}</strong></div>
-        <div class="small">${escapeHtml(p.desc || '')}</div>
-        <div style="margin-top:8px"><strong>${escapeHtml(p.price)} USD</strong></div>
-        <div class="label">${escapeHtml(p.category)}</div>
+        <img src="${p.image||'/placeholder.png'}">
+        <div><strong>${p.name}</strong></div>
+        <div class="small">${p.desc||''}</div>
+        <div class="label">${p.category}</div>
         <div class="actions">
-          <button onclick='previewProduct("${p.id}")'>Preview</button>
-          <button onclick='markSoldPrompt("${p.id}")'>Mark Sold</button>
-          <button onclick='deletePrompt("${p.id}")' style="background:#ff4d4d">Delete</button>
+          <button onclick="preview('${p.id}')">Preview</button>
         </div>
-        <div class="small" style="margin-top:6px">Clicks: ${p.clicks||0} • Masked: <code>${p.maskedLink||''}</code></div>
       `;
       grid.appendChild(div);
     }
-  }
-
-  window.previewProduct = async function(id){
-    const res = await fetch('/api/products'); const products = await res.json();
-    const p = products.find(x=>x.id===id);
-    if(!p) return alert('Not found');
-    $('previewContent').innerHTML = `
-      <h3>${escapeHtml(p.name)}</h3>
-      <img src="${p.image||'/placeholder.png'}" style="width:100%;height:320px;object-fit:cover;border-radius:8px" />
-      <p>${escapeHtml(p.desc)}</p>
-      <p><strong>Price:</strong> ${escapeHtml(p.price)} USD</p>
-      <p><strong>Category:</strong> ${escapeHtml(p.category)}</p>
-      <p><strong>Masked:</strong> <a href="${p.maskedLink}" target="_blank">${p.maskedLink}</a></p>
-      <p><button id="adminOpenBuy">Open Buy Modal</button></p>
-    `;
-    $('previewModal').style.display = 'flex';
-    $('adminOpenBuy').onclick = ()=> {
-      // open store page with view param
-      window.open(`/stores.html?view=${p.id}`,'_blank');
-    };
-  };
-  $('closePreview').onclick = ()=> $('previewModal').style.display='none';
-
-  // Save product or job
-  $('btnSave').addEventListener('click', async ()=>{
-    const pass = $('adminPass').value.trim() || localStorage.getItem('chat_admin_pass');
-    if(!pass) { alert('Admin password required'); return; }
-    const category = $('category').value;
-    if (category === "Find Jobs") {
-      // job
-      const payload = {
-        password: pass,
-        name: $('jobTitle').value.trim() || '',
-        desc: $('jobDesc').value.trim() || '',
-        price: $('jobSalary').value.trim() || '',
-        category: 'Find Jobs',
-        onlinePayment: '', // not used for jobs
-        alternatePayment: $('jobContact').value.trim() || ''
-      };
-      // jobs reuse add-product endpoint (we mark them category Find Jobs)
-      const r = await fetch('/api/upload-product', {
-        method: 'POST',
-        body: (() => {
-          const fd = new FormData();
-          fd.append('name', payload.name);
-          fd.append('desc', payload.desc);
-          fd.append('price', payload.price);
-          fd.append('category', payload.category);
-          fd.append('onlinePayment', payload.onlinePayment);
-          fd.append('website', payload.alternatePayment || '');
-          fd.append('password', pass);
-          return fd;
-        })()
-      });
-      const d = await r.json();
-      $('saveResult').innerText = d.success ? 'Job posted ✓ Masked: ' + (d.maskedLink||'') : 'Error posting job';
-      loadProducts();
-      return;
-    }
-
-    // product
-    const name = $('productName').value.trim();
-    const desc = $('productDesc').value.trim();
-    const price = $('productPrice').value.trim();
-    const website = $('productWebsite').value.trim();
-    const payment = $('productPayment').value.trim();
-    const file = $('productImage').files[0];
-    if (!name || !price) return alert('Name & price required');
-
-    const fd = new FormData();
-    fd.append('name', name); fd.append('desc', desc); fd.append('price', price);
-    fd.append('category', category); fd.append('website', website); fd.append('paymentLink', payment);
-    fd.append('password', pass);
-    if (file) fd.append('image', file);
-
-    const res = await fetch('/api/upload-product', { method: 'POST', body: fd });
-    const data = await res.json();
-    if (data.success) {
-      $('saveResult').innerText = 'Saved ✓ Masked: ' + (data.maskedLink||'');
-      // clear
-      $('productName').value=''; $('productDesc').value=''; $('productPrice').value=''; $('productWebsite').value=''; $('productPayment').value=''; $('productImage').value='';
-      loadProducts();
-    } else {
-      $('saveResult').innerText = 'Error: ' + (data.error || 'Failed');
-    }
   });
+}
+$('btnRefresh').addEventListener('click',loadProducts);
+loadProducts();
 
-  // mark sold / delete
-  window.markSoldPrompt = function(id){
-    const pass = localStorage.getItem('chat_admin_pass') || prompt('Admin password:');
-    if(!pass) return;
-    fetch('/api/mark-sold', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id, password: pass })})
-      .then(r=>r.json()).then(d=> { if(d.success) loadProducts(); else alert('Failed'); });
-  };
-  window.deletePrompt = function(id){
-    const pass = localStorage.getItem('chat_admin_pass') || prompt('Admin password:');
-    if(!pass) return;
-    fetch(`/api/delete-product/${id}`, { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ password: pass })})
-      .then(r=>r.json()).then(d=> { if(d.success) loadProducts(); else alert('Failed'); });
-  };
-
-  // bulk send
-  $('btnSendBulk').addEventListener('click', async ()=>{
-    const pass = localStorage.getItem('chat_admin_pass') || $('adminPass').value.trim();
-    if(!pass) return alert('Admin password required');
-    const raw = $('bulkNumbers').value.trim();
-    let numbers = [];
-    if (raw) numbers = raw.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
-    // if empty, try subscribers
-    if (numbers.length === 0) {
-      const subs = await fetch('/subscribers.json').then(r=>r.ok ? r.json() : []);
-      numbers = subs;
-    }
-    const message = $('bulkMessage').value.trim();
-    const payload = { numbers, message, password: pass };
-    const r = await fetch('/api/send-bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-    const d = await r.json();
-    $('bulkResult').innerText = d.success ? `Sent: ${d.results.length}` : ('Error: '+ (d.error||''));
-  });
-
-  // save subscribers
-  $('btnSaveSubs').addEventListener('click', async ()=>{
-    const raw = $('bulkNumbers').value.trim();
-    if(!raw) return alert('Paste numbers first');
-    const nums = raw.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
-    for (const n of nums) {
-      await fetch('/api/subscribe', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ phone: n }) });
-      await new Promise(r => setTimeout(r, 150));
-    }
-    $('bulkResult').innerText = 'Saved subscribers';
-  });
-
-  $('btnViewSubs').addEventListener('click', async ()=>{
-    const subs = await fetch('/subscribers.json').then(r=> r.ok ? r.json() : []);
-    $('subsList').innerText = subs.length ? subs.join('\n') : 'No subscribers';
-  });
-
-  // load buyers
-  $('btnLoadBuyers').addEventListener('click', async ()=>{
-    const pass = $('buyersPass').value.trim() || localStorage.getItem('chat_admin_pass');
-    if(!pass) return alert('Admin password required');
-    const r = await fetch(`/api/get-buyers?password=${encodeURIComponent(pass)}`);
-    if (!r.ok) return alert('Unauthorized');
-    const d = await r.json();
-    const wrap = $('buyersWrap');
-    if (!d.buyers || d.buyers.length===0) { wrap.innerHTML = '<div class="small">No buyers</div>'; return; }
-    let html = '<table style="width:100%;border-collapse:collapse"><thead><tr><th>Name</th><th>Phone</th><th>Product</th><th>Amount</th><th>Date</th></tr></thead><tbody>';
-    d.buyers.forEach(b => html += `<tr><td>${escapeHtml(b.name)}</td><td>${escapeHtml(b.phone)}</td><td>${escapeHtml(b.product || b.productId)}</td><td>${escapeHtml(b.amount||'')}</td><td>${new Date(b.createdAt).toLocaleString()}</td></tr>`);
-    html += '</tbody></table>';
-    wrap.innerHTML = html;
-  });
-
-  // load clicks
-  $('btnLoadClicks').addEventListener('click', async ()=>{
-    const pass = localStorage.getItem('chat_admin_pass') || $('adminPass').value.trim();
-    if(!pass) return alert('Admin password required');
-    const r = await fetch(`/api/clicks?password=${encodeURIComponent(pass)}`);
-    if(!r.ok) return alert('Unauthorized');
-    const d = await r.json();
-    const prodId = $('clickProdSelect').value;
-    const rows = (d.clicks||[]).filter(c => c.productId === prodId);
-    let html = '<table style="width:100%"><thead><tr><th>Time</th><th>IP</th><th>UA</th></tr></thead><tbody>';
-    rows.forEach(rw => html += `<tr><td>${new Date(rw.time).toLocaleString()}</td><td>${escapeHtml(rw.ip)}</td><td>${escapeHtml(rw.ua)}</td></tr>`);
-    html += '</tbody></table>';
-    $('clicksWrap').innerHTML = rows.length ? html : '<div class="small">No clicks</div>';
-  });
-
-  // load messages
-  $('btnLoadMsgs').addEventListener('click', async ()=>{
-    const pass = $('msgsPass').value.trim() || localStorage.getItem('chat_admin_pass');
-    if(!pass) return alert('Admin password required');
-    const r = await fetch(`/api/messages?password=${encodeURIComponent(pass)}`);
-    if(!r.ok) return alert('Unauthorized');
-    const d = await r.json();
-    if(!d.messages || d.messages.length===0) { $('msgsWrap').innerHTML = '<div class="small">No messages</div>'; return; }
-    const rows = d.messages.slice(0,200).map(m => `<div style="border-bottom:1px solid #eee;padding:8px"><pre style="white-space:pre-wrap">${escapeHtml(JSON.stringify(m.raw||m.body||m, null, 2))}</pre></div>`);
-    $('msgsWrap').innerHTML = rows.join('');
-  });
-
-  // initial load
-  await loadProducts();
-
-  // refresh
-  $('btnRefresh').addEventListener('click', loadProducts);
-  $('filterCategory').addEventListener('change', loadProducts);
-
-  // allow admin to store password in localStorage
-  // if admin enters password in the adminPass input and it's correct (test via /api/get-buyers), we store it
-  $('adminPass').addEventListener('blur', async ()=>{
-    const pass = $('adminPass').value.trim();
-    if(!pass) return;
-    try {
-      const r = await fetch(`/api/get-buyers?password=${encodeURIComponent(pass)}`);
-      if (r.ok) {
-        localStorage.setItem('chat_admin_pass', pass);
-        localStorage.setItem('chat_admin_auth','1');
-      }
-    } catch(e){}
-  });
-
-})();
+window.preview = async function(id){
+  const res = await fetch('/api/products');
+  const p = (await res.json()).find(x=>x.id===id);
+  if(!p) return;
+  $('previewContent').innerHTML = `
+    <h3>${p.name}</h3>
+    <img src="${p.image||'/placeholder.png'}" style="width:100%;max-height:320px;object-fit:cover;border-radius:6px;">
+    <p>${p.desc}</p>
+    <p><strong>Price:</strong> ${p.price} USD</p>
+    <p><strong>Category:</strong> ${p.category}</p>
+    <p><strong>Masked:</strong> <a href="${p.maskedLink}" target="_blank">${p.maskedLink||''}</a></p>
+  `;
+  $('previewModal').style.display='flex';
+};
+$('closePreview').addEventListener('click',()=>$('previewModal').style.display='none');
 </script>
 </body>
 </html>
