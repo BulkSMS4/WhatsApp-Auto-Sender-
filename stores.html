@@ -44,6 +44,7 @@
     box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     overflow: hidden;
     transition: transform .2s ease;
+    position: relative;
   }
   .product:hover {
     transform: scale(1.02);
@@ -82,6 +83,38 @@
   }
   .buy-btn:hover {
     background: #1ebe5c;
+  }
+  .delivery-form {
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid #25D366;
+    border-radius: 8px;
+    background-color: #f0fff4;
+  }
+  .delivery-form input, .delivery-form textarea, .delivery-form select {
+    width: 100%;
+    padding: 6px;
+    margin: 4px 0 10px 0;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+  }
+  .delivery-form button {
+    background: #25D366;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    margin-right: 5px;
+    font-weight: bold;
+  }
+  .delivery-form button:hover {
+    background: #1ebe5c;
+  }
+  .paymentLink a {
+    color: #25D366;
+    font-weight: bold;
+    text-decoration: none;
   }
 </style>
 </head>
@@ -126,7 +159,6 @@ async function loadStore() {
           <h3>${p.name}</h3>
           <p>${p.desc}</p>
           <p class="price">${await convertPrice(p.price)}</p>
-          <p><a href="${p.uniqueLink}" target="_blank">Check Out Product</a></p>
         </div>
         <button class="buy-btn" onclick="openBuy('${p.id}')">🛒 Buy Now</button>
       `;
@@ -136,7 +168,6 @@ async function loadStore() {
   }
 }
 
-// Currency auto-detection + live rate conversion
 async function convertPrice(price) {
   try {
     const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
@@ -152,12 +183,79 @@ async function convertPrice(price) {
 }
 
 function openBuy(id) {
-  alert("🧾 Opening delivery form for product ID: " + id);
-  // It will open embedded delivery form inside the same page later
+  const existingForm = document.getElementById('deliveryForm_' + id);
+  if (existingForm) {
+    existingForm.style.display = existingForm.style.display === 'none' ? 'block' : 'none';
+    return;
+  }
+
+  const prodDiv = document.querySelector(`.product button[onclick="openBuy('${id}')"]`).parentElement;
+
+  const formDiv = document.createElement('div');
+  formDiv.id = 'deliveryForm_' + id;
+  formDiv.className = 'delivery-form';
+  formDiv.innerHTML = `
+    <h4>📦 Delivery Form</h4>
+    <label>Name:<input type="text" id="name_${id}" required></label>
+    <label>Phone:<input type="text" id="phone_${id}" required></label>
+    <label>Address:<textarea id="address_${id}" required></textarea></label>
+    <label>Delivery Type:
+      <select id="type_${id}" required>
+        <option value="">Select type</option>
+        <option value="standard">Standard</option>
+        <option value="express">Express</option>
+      </select>
+    </label>
+    <button onclick="submitDelivery('${id}')">Submit Form</button>
+    <button onclick="document.getElementById('deliveryForm_${id}').style.display='none'">Cancel</button>
+  `;
+
+  prodDiv.appendChild(formDiv);
+}
+
+async function submitDelivery(id) {
+  const name = document.getElementById(`name_${id}`).value.trim();
+  const phone = document.getElementById(`phone_${id}`).value.trim();
+  const address = document.getElementById(`address_${id}`).value.trim();
+  const type = document.getElementById(`type_${id}`).value;
+
+  if (!name || !phone || !address || !type) {
+    alert("⚠️ All fields are required!");
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/delivery', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId: id, name, phone, address, type })
+    });
+
+    if (res.ok) {
+      alert('✅ Delivery form submitted!');
+
+      const prodDiv = document.querySelector(`.product button[onclick="openBuy('${id}')"]`).parentElement;
+      let paymentLink = prodDiv.querySelector('.paymentLink');
+      if (!paymentLink) {
+        paymentLink = document.createElement('p');
+        paymentLink.className = 'paymentLink';
+        paymentLink.innerHTML = `<a href="/payment?product=${id}" target="_blank">💳 Proceed to Payment</a>`;
+        prodDiv.appendChild(paymentLink);
+      } else {
+        paymentLink.style.display = 'block';
+      }
+
+      document.getElementById('deliveryForm_' + id).style.display = 'none';
+    } else {
+      alert('❌ Submission failed!');
+    }
+  } catch (err) {
+    alert('❌ Error submitting form: ' + err);
+  }
 }
 
 loadStore();
-setInterval(loadStore, 10000); // refresh every 10 sec
+setInterval(loadStore, 10000);
 </script>
 
 </body>
