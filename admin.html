@@ -1,214 +1,203 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ChatSenderBot Admin Dashboard</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f8f8f8;
-      margin: 0; padding: 0;
-    }
-    header {
-      background: #25D366;
-      color: white;
-      padding: 1rem;
-      text-align: center;
-      font-size: 1.5em;
-      font-weight: bold;
-    }
-    section {
-      max-width: 1000px;
-      margin: 20px auto;
-      background: white;
-      padding: 1rem;
-      border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-    h2 {
-      color: #333;
-      margin-bottom: 10px;
-    }
-    input, textarea {
-      width: 100%;
-      padding: 8px;
-      margin-top: 8px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-    }
-    button {
-      margin-top: 10px;
-      padding: 8px 12px;
-      border: none;
-      border-radius: 5px;
-      background: #25D366;
-      color: white;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    button:hover { background: #1ebe5c; }
-    .delete-btn { background: #ff4d4d; }
-    .delete-btn:hover { background: #e63939; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-    }
-    th, td {
-      padding: 10px;
-      border: 1px solid #ccc;
-      text-align: left;
-    }
-    th {
-      background: #25D366;
-      color: white;
-    }
-    tr:nth-child(even) { background: #f9f9f9; }
-    .logout {
-      text-align: right;
-      margin-bottom: 10px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📱 WhatsApp Admin Dashboard</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f7f7f7;
+    margin: 0; padding: 0;
+  }
+  header {
+    background: #25D366;
+    color: white;
+    text-align: center;
+    padding: 1rem;
+    font-size: 1.5em;
+    font-weight: bold;
+  }
+  section {
+    padding: 1rem;
+    max-width: 900px;
+    margin: 20px auto;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+  input, textarea, select, button {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 1em;
+  }
+  button {
+    background: #25D366;
+    color: white;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  button:hover { background: #1ebe5c; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .product {
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 6px;
+  }
+  .sold {
+    background: #ffeaea;
+    text-decoration: line-through;
+    opacity: 0.7;
+  }
+  h3 small {
+    font-size: 0.8em;
+    color: gray;
+  }
+  footer {
+    text-align: center;
+    color: #555;
+    margin: 20px 0;
+    font-size: 0.9em;
+  }
+</style>
 </head>
 <body>
 
-<header>💬 ChatSenderBot — Admin Dashboard</header>
+<header>📦 WhatsApp Business Admin Dashboard</header>
 
 <section>
-  <div class="logout">
-    <button onclick="logout()">Logout</button>
+  <h2>➕ Add New Product</h2>
+  <div class="row">
+    <input type="text" id="productName" placeholder="Product Name">
+    <input type="text" id="productPrice" placeholder="Price (e.g. 200 GHS)">
   </div>
+  <textarea id="productDesc" placeholder="Product Description"></textarea>
+  <select id="productCategory">
+    <option value="">Select Category</option>
+    <option value="Phones">Phones</option>
+    <option value="Laptops">Laptops</option>
+    <option value="Accessories">Accessories</option>
+    <option value="Home Appliances">Home Appliances</option>
+    <option value="Fashion">Fashion</option>
+  </select>
+  <input type="text" id="productPayment" placeholder="Custom Payment Link">
+  <input type="text" id="productWebsite" placeholder="Product Website Link">
+  <button onclick="addProduct()">Add Product</button>
 
-  <h2>📤 Send WhatsApp Message</h2>
-  <form id="msgForm">
-    <label>Recipient Number (with country code):</label>
-    <input type="text" id="phone" placeholder="233..." required />
-    <label>Message:</label>
-    <textarea id="message" rows="4" placeholder="Type your message..." required></textarea>
-    <button type="submit">Send Message</button>
-  </form>
-  <div id="sendResult"></div>
+  <h2>🛒 All Products</h2>
+  <div id="productList"></div>
 </section>
 
 <section>
-  <h2>🧾 Buyers Records</h2>
-  <input type="text" id="searchInput" placeholder="🔍 Search by name or product...">
-  <button onclick="exportCSV()">⬇️ Export CSV</button>
-
-  <table id="buyersTable">
-    <thead>
-      <tr>
-        <th>Name</th><th>Phone</th><th>Email</th><th>Address</th>
-        <th>Product</th><th>Payment</th><th>Date</th><th>Action</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <h2>📞 Bulk Message Sender</h2>
+  <textarea id="numbersInput" rows="5" placeholder="Enter WhatsApp numbers (one per line, with country code e.g. 233593231752)"></textarea>
+  <textarea id="messageInput" rows="5" placeholder="Type your message here. Use {product}, {price}, {link}, {category} for auto-fill."></textarea>
+  <button onclick="sendBulkMessages()">🚀 Send to All</button>
 </section>
+
+<footer>🧾 Foster — Admin Panel © 2025</footer>
 
 <script>
-  let buyers = [];
-  let adminPassword = null;
+  let products = [];
 
-  async function initDashboard() {
-    adminPassword = prompt("Enter Admin Password:");
-    if (!adminPassword) return alert("Access denied.");
-    localStorage.setItem("chat_admin_pw", adminPassword);
-    await loadBuyers();
+  async function loadProducts() {
+    const res = await fetch('/api/products');
+    const data = await res.json();
+    products = data;
+    renderProducts();
   }
 
-  async function sendMessage(e) {
-    e.preventDefault();
-    const phone = document.getElementById("phone").value.trim();
-    const message = document.getElementById("message").value.trim();
-    const sendResult = document.getElementById("sendResult");
-    sendResult.textContent = "⏳ Sending...";
+  function renderProducts() {
+    const list = document.getElementById('productList');
+    list.innerHTML = "";
+    const grouped = {};
 
-    const res = await fetch("/send-whatsapp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: adminPassword, phone, message })
+    // group products by category
+    products.forEach(p => {
+      if (!grouped[p.category]) grouped[p.category] = [];
+      grouped[p.category].push(p);
     });
 
-    const data = await res.json();
-    if (data.success) {
-      sendResult.textContent = "✅ Message sent successfully!";
-    } else sendResult.textContent = "❌ Error: " + (data.error || "Failed");
+    for (const cat in grouped) {
+      list.innerHTML += `<h3>${cat}</h3>`;
+      grouped[cat].forEach(p => {
+        list.innerHTML += `
+          <div class="product ${p.sold ? 'sold' : ''}">
+            <h3>${p.name} <small>(${p.category})</small></h3>
+            <p>${p.desc}</p>
+            <strong>Price:</strong> ${p.price}<br>
+            <strong>Website:</strong> <a href="${p.alternatePayment}" target="_blank">${p.alternatePayment}</a><br>
+            <strong>Payment:</strong> <a href="${p.onlinePayment}" target="_blank">Pay Now</a><br>
+            ${p.sold ? '<em>Sold</em>' : `<button onclick="markSold('${p.id}')">Mark as Sold</button>`}
+          </div>
+        `;
+      });
+    }
   }
 
-  async function loadBuyers() {
-    const res = await fetch(`/api/get-buyers?password=${adminPassword}`);
-    const data = await res.json();
-    if (!data.success) return alert(data.error || "Unauthorized");
-    buyers = data.buyers;
-    renderTable(buyers);
-  }
+  async function addProduct() {
+    const name = document.getElementById('productName').value.trim();
+    const desc = document.getElementById('productDesc').value.trim();
+    const price = document.getElementById('productPrice').value.trim();
+    const payment = document.getElementById('productPayment').value.trim();
+    const website = document.getElementById('productWebsite').value.trim();
+    const category = document.getElementById('productCategory').value.trim();
 
-  function renderTable(list) {
-    const tbody = document.querySelector("#buyersTable tbody");
-    tbody.innerHTML = "";
-    list.forEach(b => {
-      tbody.innerHTML += `
-        <tr>
-          <td>${b.name}</td>
-          <td>${b.phone}</td>
-          <td>${b.email}</td>
-          <td>${b.address}</td>
-          <td>${b.product}</td>
-          <td>${b.paymentMethod || "N/A"}</td>
-          <td>${b.date}</td>
-          <td><button class="delete-btn" onclick="deleteBuyer('${b.id}')">🗑️</button></td>
-        </tr>
-      `;
-    });
-  }
+    if (!name || !price || !category) return alert("Please fill all required fields.");
 
-  document.getElementById("searchInput").addEventListener("input", e => {
-    const val = e.target.value.toLowerCase();
-    const filtered = buyers.filter(b =>
-      b.name.toLowerCase().includes(val) || b.product.toLowerCase().includes(val)
-    );
-    renderTable(filtered);
-  });
-
-  async function deleteBuyer(id) {
-    const confirmDel = confirm("Delete this buyer record?");
-    if (!confirmDel) return;
-    const res = await fetch(`/api/delete-buyer/${id}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: adminPassword })
+    const res = await fetch('/api/add-product', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        password: "Forgetme",
+        name, desc, price, onlinePayment: payment,
+        alternatePayment: website, category
+      })
     });
     const data = await res.json();
     if (data.success) {
-      alert("Deleted!");
-      loadBuyers();
-    } else alert(data.error || "Failed to delete");
+      alert("✅ Product added!");
+      loadProducts();
+    } else alert(data.error || "Failed to add product.");
   }
 
-  function exportCSV() {
-    const rows = [
-      ["Name","Phone","Email","Address","Product","Payment","Date"],
-      ...buyers.map(b => [
-        b.name, b.phone, b.email, b.address, b.product, b.paymentMethod || "N/A", b.date
-      ])
-    ];
-    const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
-    const a = document.createElement("a");
-    a.href = csvContent;
-    a.download = "buyers.csv";
-    a.click();
+  async function markSold(id) {
+    await fetch(`/api/mark-sold/${id}`, { method: 'POST' });
+    alert("✅ Product marked as sold!");
+    loadProducts();
   }
 
-  function logout() {
-    localStorage.removeItem("chat_admin_pw");
-    location.reload();
+  async function sendBulkMessages() {
+    const numbers = document.getElementById('numbersInput').value.trim().split('\n').filter(n => n);
+    const message = document.getElementById('messageInput').value.trim();
+    if (numbers.length === 0 || !message) return alert("Add numbers and message first.");
+
+    const selectedProduct = products[products.length - 1] || {};
+    const msg = message
+      .replace(/{product}/g, selectedProduct.name || '')
+      .replace(/{price}/g, selectedProduct.price || '')
+      .replace(/{link}/g, selectedProduct.onlinePayment || '')
+      .replace(/{category}/g, selectedProduct.category || '');
+
+    for (const num of numbers) {
+      await fetch('/api/send-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: num, text: msg })
+      });
+      await new Promise(r => setTimeout(r, 800));
+    }
+
+    alert("✅ Messages sent successfully!");
   }
 
-  document.getElementById("msgForm").addEventListener("submit", sendMessage);
-  initDashboard();
+  loadProducts();
 </script>
 
 </body>
-  </html>
+</html>
