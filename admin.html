@@ -62,45 +62,6 @@
     .buy-btn {
       background: #007bff;
     }
-
-    /* Modal styles */
-    #paymentModal {
-      display: none;
-      position: fixed;
-      left: 0; top: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.6);
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-    }
-    #paymentContent {
-      background: #fff;
-      width: 90%;
-      max-width: 600px;
-      border-radius: 10px;
-      padding: 1.5rem;
-      position: relative;
-      text-align: center;
-    }
-    #closePayment {
-      position: absolute;
-      right: 15px;
-      top: 10px;
-      background: #ff4d4d;
-      color: white;
-      border: none;
-      border-radius: 50%;
-      width: 30px;
-      height: 30px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    iframe {
-      width: 100%;
-      height: 500px;
-      border: none;
-    }
   </style>
 </head>
 <body>
@@ -108,120 +69,96 @@
 <header>📱 WhatsApp Auto Sender Dashboard</header>
 
 <section id="dashboard">
-  <h2>Add New Contact</h2>
-  <input type="text" id="contactName" placeholder="Customer Name">
-  <input type="text" id="contactNumber" placeholder="Phone number (with country code)">
-  <button onclick="addContact()">Save Contact</button>
-  <hr>
-
   <h2>Add New Product</h2>
   <input type="text" id="productName" placeholder="Product Name">
   <textarea id="productDesc" placeholder="Description"></textarea>
   <input type="text" id="productPrice" placeholder="Price (e.g. 200 GHS)">
-  <input type="text" id="customPayment" placeholder="Custom Payment Form URL (hidden)">
+  <input type="text" id="onlinePayment" placeholder="Online Payment Link (optional)">
+  <input type="text" id="alternatePayment" placeholder="Alternate Payment Link (optional)">
   <button onclick="addProduct()">Add Product</button>
+  <hr>
 
   <h2>All Products</h2>
   <div id="productList"></div>
-
-  <hr>
-  <button onclick="startAutoSend()">🚀 Start Auto Send</button>
 </section>
 
-<!-- 💳 Hidden Payment Modal -->
-<div id="paymentModal">
-  <div id="paymentContent">
-    <button id="closePayment" onclick="closePayment()">✖</button>
-    <iframe id="paymentFrame"></iframe>
-  </div>
-</div>
-
 <script>
-  let contacts = [];
-  let products = [];
-  let selectedProduct = null;
+  const ADMIN_PASSWORD = "Forgetme"; // taken from .env but local for simplicity
 
-  // Add contacts
-  function addContact() {
-    const name = document.getElementById('contactName').value.trim();
-    const number = document.getElementById('contactNumber').value.trim();
-    if (!name || !number) return alert("Please fill in both name and phone.");
-    contacts.push({ name, number });
-    alert("✅ Contact added!");
+  // Protect access
+  if (!localStorage.getItem("authenticated")) {
+    window.location.href = "/login";
   }
 
-  // Add product
-  function addProduct() {
-    const name = document.getElementById('productName').value.trim();
-    const desc = document.getElementById('productDesc').value.trim();
-    const price = document.getElementById('productPrice').value.trim();
-    const customPayment = document.getElementById('customPayment').value.trim();
-
-    if (!name || !price) return alert("Product name and price required.");
-
-    const product = { name, desc, price, customPayment, sold: false };
-    products.push(product);
-    renderProducts();
+  // Fetch all products
+  async function loadProducts() {
+    const res = await fetch("/api/products");
+    const data = await res.json();
+    renderProducts(data);
   }
 
-  // Render products
-  function renderProducts() {
+  // Add new product
+  async function addProduct() {
+    const name = document.getElementById("productName").value.trim();
+    const desc = document.getElementById("productDesc").value.trim();
+    const price = document.getElementById("productPrice").value.trim();
+    const onlinePayment = document.getElementById("onlinePayment").value.trim();
+    const alternatePayment = document.getElementById("alternatePayment").value.trim();
+
+    if (!name || !price) return alert("Please enter product name and price.");
+
+    const res = await fetch("/api/add-product", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        password: ADMIN_PASSWORD,
+        name, desc, price, onlinePayment, alternatePayment
+      }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert("✅ Product added!");
+      loadProducts();
+    } else {
+      alert("❌ Failed to add product.");
+    }
+  }
+
+  // Render product list
+  function renderProducts(products) {
     const list = document.getElementById("productList");
     list.innerHTML = "";
-    products.forEach((p, i) => {
+    products.forEach(p => {
       list.innerHTML += `
         <div class="product ${p.sold ? 'sold' : ''}">
           <h3>${p.name}</h3>
           <p>${p.desc}</p>
           <strong>Price:</strong> ${p.price}<br>
-          ${p.sold ? '<em>Marked as Sold</em>' : `
-            <button class="buy-btn" onclick="openPayment(${i})">Buy Now</button>
-          `}
-          <div class="product-actions">
-            <button class="sold-btn" onclick="markSold(${i})">Mark as Sold</button>
-            <button class="delete-btn" onclick="deleteProduct(${i})">Delete</button>
-          </div>
+          <button class="delete-btn" onclick="deleteProduct('${p.id}')">Delete</button>
         </div>
       `;
     });
   }
 
   // Delete product
-  function deleteProduct(index) {
-    if (confirm("Are you sure you want to delete this product?")) {
-      products.splice(index, 1);
-      renderProducts();
+  async function deleteProduct(id) {
+    if (!confirm("Are you sure?")) return;
+    const res = await fetch("/api/delete/" + id, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: ADMIN_PASSWORD }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert("🗑️ Product deleted");
+      loadProducts();
+    } else {
+      alert("❌ Failed to delete product.");
     }
   }
 
-  // Mark product as sold
-  function markSold(index) {
-    products[index].sold = true;
-    renderProducts();
-  }
-
-  // Open custom payment form (hidden link)
-  function openPayment(index) {
-    const product = products[index];
-    if (!product.customPayment) return alert("No payment form link found for this item.");
-    const frame = document.getElementById('paymentFrame');
-    frame.src = product.customPayment;
-    document.getElementById('paymentModal').style.display = 'flex';
-  }
-
-  // Close payment modal
-  function closePayment() {
-    document.getElementById('paymentModal').style.display = 'none';
-    document.getElementById('paymentFrame').src = '';
-  }
-
-  // Auto send simulation
-  function startAutoSend() {
-    if (contacts.length === 0 || products.length === 0)
-      return alert("Add contacts and products first!");
-    alert("🚀 Auto sending started (simulation)...");
-  }
+  loadProducts();
 </script>
 
 </body>
-</html>
+    </html>
