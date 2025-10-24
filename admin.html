@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>📱 WhatsApp Admin Dashboard</title>
+<title>📱 WhatsApp Business Admin Dashboard</title>
 <style>
   body {
     font-family: Arial, sans-serif;
-    background: #f7f7f7;
-    margin: 0; padding: 0;
+    margin: 0;
+    background: #f4f4f4;
+    color: #222;
   }
   header {
     background: #25D366;
@@ -17,187 +18,218 @@
     padding: 1rem;
     font-size: 1.5em;
     font-weight: bold;
+    position: sticky;
+    top: 0;
+    z-index: 10;
   }
-  section {
-    padding: 1rem;
-    max-width: 900px;
-    margin: 20px auto;
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  #sidebar {
+    width: 220px;
+    background: #202c33;
+    color: white;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    overflow-y: auto;
+    transition: all 0.3s;
+    padding-top: 80px;
   }
+  #sidebar.hidden { left: -230px; }
+  #sidebar ul { list-style: none; padding: 0; }
+  #sidebar li { padding: 12px 20px; cursor: pointer; }
+  #sidebar li:hover { background: #25D366; }
+  #content {
+    margin-left: 240px;
+    padding: 20px;
+    transition: all 0.3s;
+  }
+  #sidebar.hidden + #content { margin-left: 20px; }
+
   input, textarea, select, button {
     width: 100%;
     padding: 10px;
     margin: 8px 0;
-    border: 1px solid #ccc;
     border-radius: 6px;
+    border: 1px solid #ccc;
     font-size: 1em;
   }
   button {
     background: #25D366;
     color: white;
     border: none;
-    font-weight: bold;
     cursor: pointer;
+    font-weight: bold;
   }
   button:hover { background: #1ebe5c; }
-  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .product {
-    border: 1px solid #ddd;
-    padding: 10px;
-    margin-top: 10px;
-    border-radius: 6px;
+
+  .section {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
   }
-  .sold {
-    background: #ffeaea;
-    text-decoration: line-through;
-    opacity: 0.7;
-  }
-  h3 small {
-    font-size: 0.8em;
-    color: gray;
-  }
-  footer {
-    text-align: center;
-    color: #555;
-    margin: 20px 0;
-    font-size: 0.9em;
-  }
+  .product { border-bottom: 1px solid #eee; padding: 10px 0; }
+  .product.sold { opacity: 0.6; text-decoration: line-through; }
+  .category-label { color: #25D366; font-weight: bold; }
 </style>
 </head>
-<body>
+<body ontouchstart="hideSidebar()" onclick="hideSidebar()">
 
-<header>📦 WhatsApp Business Admin Dashboard</header>
+<header onclick="toggleSidebar()">📦 WhatsApp Admin Dashboard</header>
 
-<section>
-  <h2>➕ Add New Product</h2>
-  <div class="row">
-    <input type="text" id="productName" placeholder="Product Name">
-    <input type="text" id="productPrice" placeholder="Price (e.g. 200 GHS)">
+<div id="sidebar">
+  <ul>
+    <li onclick="showSection('products')">🛒 Products</li>
+    <li onclick="showSection('messages')">💬 Bulk Messages</li>
+    <li onclick="showSection('calculator')">📦 Delivery Calculator</li>
+    <li onclick="showSection('buyers')">🧾 Buyers</li>
+    <li onclick="showSection('track')">📊 Track Visits</li>
+  </ul>
+</div>
+
+<div id="content">
+  <!-- PRODUCTS -->
+  <div id="products" class="section">
+    <h2>➕ Add Product</h2>
+    <div class="row">
+      <input type="text" id="productName" placeholder="Product Name">
+      <input type="text" id="productPrice" placeholder="Price (e.g. 200 GHS)">
+    </div>
+    <textarea id="productDesc" placeholder="Product Description"></textarea>
+    <select id="productCategory">
+      <option value="">Select Category</option>
+      <option value="Phones">📱 Phones</option>
+      <option value="Rings">💍 Rings</option>
+      <option value="Toys">🧸 Toys</option>
+      <option value="Cars">🚗 Cars</option>
+      <option value="Trucks">🚚 Trucks</option>
+      <option value="Food">🍔 Food</option>
+      <option value="Find Jobs">💼 Find Jobs</option>
+    </select>
+    <input type="text" id="productPayment" placeholder="Custom Payment Link">
+    <input type="text" id="productWebsite" placeholder="Product Website Link">
+    <button onclick="addProduct()">Add Product</button>
+
+    <h3>🛍️ All Products</h3>
+    <div id="productList"></div>
   </div>
-  <textarea id="productDesc" placeholder="Product Description"></textarea>
-  <select id="productCategory">
-    <option value="">Select Category</option>
-    <option value="Phones">Phones</option>
-    <option value="Laptops">Laptops</option>
-    <option value="Accessories">Accessories</option>
-    <option value="Home Appliances">Home Appliances</option>
-    <option value="Fashion">Fashion</option>
-  </select>
-  <input type="text" id="productPayment" placeholder="Custom Payment Link">
-  <input type="text" id="productWebsite" placeholder="Product Website Link">
-  <button onclick="addProduct()">Add Product</button>
 
-  <h2>🛒 All Products</h2>
-  <div id="productList"></div>
-</section>
+  <!-- MESSAGES -->
+  <div id="messages" class="section" style="display:none;">
+    <h2>💬 Send Bulk Messages</h2>
+    <textarea id="numbersInput" rows="5" placeholder="Enter numbers (one per line, with country code)"></textarea>
+    <textarea id="messageInput" rows="5" placeholder="Type message (use {product}, {price}, {link})"></textarea>
+    <button onclick="sendBulkMessages()">🚀 Send Messages</button>
+  </div>
 
-<section>
-  <h2>📞 Bulk Message Sender</h2>
-  <textarea id="numbersInput" rows="5" placeholder="Enter WhatsApp numbers (one per line, with country code e.g. 233593231752)"></textarea>
-  <textarea id="messageInput" rows="5" placeholder="Type your message here. Use {product}, {price}, {link}, {category} for auto-fill."></textarea>
-  <button onclick="sendBulkMessages()">🚀 Send to All</button>
-</section>
+  <!-- CALCULATOR -->
+  <div id="calculator" class="section" style="display:none;">
+    <h2>🚚 Delivery Calculator</h2>
+    <select id="deliveryType">
+      <option value="Standard">Standard Delivery</option>
+      <option value="Express">Express Delivery</option>
+    </select>
+    <input type="number" id="basePrice" placeholder="Enter Product Base Price">
+    <button onclick="calcDelivery()">Calculate Total</button>
+    <h3 id="totalDisplay"></h3>
+  </div>
 
-<footer>🧾 Foster — Admin Panel © 2025</footer>
+  <!-- BUYERS -->
+  <div id="buyers" class="section" style="display:none;">
+    <h2>🧾 Buyers Information</h2>
+    <div id="buyersList"></div>
+  </div>
+
+  <!-- TRACK -->
+  <div id="track" class="section" style="display:none;">
+    <h2>📊 Product Visits</h2>
+    <div id="visitList"></div>
+  </div>
+</div>
 
 <script>
-  let products = [];
+let products = [];
 
-  async function loadProducts() {
-    const res = await fetch('/api/products');
-    const data = await res.json();
-    products = data;
-    renderProducts();
-  }
+async function loadProducts() {
+  const res = await fetch('/api/products');
+  products = await res.json();
+  renderProducts();
+}
 
-  function renderProducts() {
-    const list = document.getElementById('productList');
-    list.innerHTML = "";
-    const grouped = {};
+function renderProducts() {
+  const list = document.getElementById('productList');
+  list.innerHTML = "";
+  products.forEach(p => {
+    list.innerHTML += `
+      <div class="product ${p.sold ? 'sold' : ''}">
+        <strong>${p.name}</strong> <span class="category-label">(${p.category})</span><br>
+        ${p.desc}<br>
+        <strong>Price:</strong> ${p.price}<br>
+        <a href="/track/${p.id}" target="_blank">Check Out</a><br>
+        <button onclick="markSold('${p.id}')">Mark as Sold</button>
+      </div>`;
+  });
+}
 
-    // group products by category
-    products.forEach(p => {
-      if (!grouped[p.category]) grouped[p.category] = [];
-      grouped[p.category].push(p);
-    });
+async function addProduct() {
+  const name = productName.value.trim();
+  const desc = productDesc.value.trim();
+  const price = productPrice.value.trim();
+  const category = productCategory.value.trim();
+  const onlinePayment = productPayment.value.trim();
+  const alternatePayment = productWebsite.value.trim();
 
-    for (const cat in grouped) {
-      list.innerHTML += `<h3>${cat}</h3>`;
-      grouped[cat].forEach(p => {
-        list.innerHTML += `
-          <div class="product ${p.sold ? 'sold' : ''}">
-            <h3>${p.name} <small>(${p.category})</small></h3>
-            <p>${p.desc}</p>
-            <strong>Price:</strong> ${p.price}<br>
-            <strong>Website:</strong> <a href="${p.alternatePayment}" target="_blank">${p.alternatePayment}</a><br>
-            <strong>Payment:</strong> <a href="${p.onlinePayment}" target="_blank">Pay Now</a><br>
-            ${p.sold ? '<em>Sold</em>' : `<button onclick="markSold('${p.id}')">Mark as Sold</button>`}
-          </div>
-        `;
-      });
-    }
-  }
+  if (!name || !price) return alert("Enter name and price!");
 
-  async function addProduct() {
-    const name = document.getElementById('productName').value.trim();
-    const desc = document.getElementById('productDesc').value.trim();
-    const price = document.getElementById('productPrice').value.trim();
-    const payment = document.getElementById('productPayment').value.trim();
-    const website = document.getElementById('productWebsite').value.trim();
-    const category = document.getElementById('productCategory').value.trim();
+  const res = await fetch('/api/add-product', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: "Forgetme", name, desc, price, category, onlinePayment, alternatePayment })
+  });
+  const data = await res.json();
+  if (data.success) { alert("✅ Added!"); loadProducts(); }
+}
 
-    if (!name || !price || !category) return alert("Please fill all required fields.");
-
-    const res = await fetch('/api/add-product', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        password: "Forgetme",
-        name, desc, price, onlinePayment: payment,
-        alternatePayment: website, category
-      })
-    });
-    const data = await res.json();
-    if (data.success) {
-      alert("✅ Product added!");
-      loadProducts();
-    } else alert(data.error || "Failed to add product.");
-  }
-
-  async function markSold(id) {
-    await fetch(`/api/mark-sold/${id}`, { method: 'POST' });
-    alert("✅ Product marked as sold!");
-    loadProducts();
-  }
-
-  async function sendBulkMessages() {
-    const numbers = document.getElementById('numbersInput').value.trim().split('\n').filter(n => n);
-    const message = document.getElementById('messageInput').value.trim();
-    if (numbers.length === 0 || !message) return alert("Add numbers and message first.");
-
-    const selectedProduct = products[products.length - 1] || {};
-    const msg = message
-      .replace(/{product}/g, selectedProduct.name || '')
-      .replace(/{price}/g, selectedProduct.price || '')
-      .replace(/{link}/g, selectedProduct.onlinePayment || '')
-      .replace(/{category}/g, selectedProduct.category || '');
-
-    for (const num of numbers) {
-      await fetch('/api/send-whatsapp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: num, text: msg })
-      });
-      await new Promise(r => setTimeout(r, 800));
-    }
-
-    alert("✅ Messages sent successfully!");
-  }
-
+async function markSold(id) {
+  await fetch('/api/mark-sold', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id}) });
   loadProducts();
-</script>
+}
 
+async function sendBulkMessages() {
+  const numbers = numbersInput.value.trim().split('\n');
+  const msg = messageInput.value.trim();
+  const p = products[products.length-1] || {};
+  const filled = msg.replace(/{product}/g,p.name||'').replace(/{price}/g,p.price||'').replace(/{link}/g,`https://yourdomain.com/track/${p.id}`);
+  for (const n of numbers) {
+    await fetch('/api/send-whatsapp', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone:n, text:filled})});
+    await new Promise(r=>setTimeout(r,1000));
+  }
+  alert("✅ Sent!");
+}
+
+async function calcDelivery() {
+  const res = await fetch('/api/calc-delivery', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ type: deliveryType.value, base: basePrice.value })
+  });
+  const data = await res.json();
+  totalDisplay.innerText = `Total Cost: ${data.total} GHS`;
+}
+
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.style.display='none');
+  document.getElementById(id).style.display='block';
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('hidden');
+}
+function hideSidebar() {
+  document.getElementById('sidebar').classList.add('hidden');
+}
+
+loadProducts();
+</script>
 </body>
 </html>
