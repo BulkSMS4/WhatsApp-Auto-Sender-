@@ -53,18 +53,18 @@
       margin-right: 5px;
       padding: 6px 10px;
     }
-    .buy-btn {
-      background: #007bff;
-    }
     .delete-btn {
       background: #ff4d4d;
     }
     .sold-btn {
       background: #ff9800;
     }
+    .buy-btn {
+      background: #007bff;
+    }
 
-    /* Payment modal */
-    #chooseModal, #paymentModal {
+    /* Modal styles */
+    #paymentModal {
       display: none;
       position: fixed;
       left: 0; top: 0;
@@ -74,21 +74,16 @@
       align-items: center;
       z-index: 1000;
     }
-    #chooseContent, #paymentContent {
+    #paymentContent {
       background: #fff;
       width: 90%;
       max-width: 600px;
       border-radius: 10px;
       padding: 1.5rem;
-      text-align: center;
       position: relative;
+      text-align: center;
     }
-    #paymentContent iframe {
-      width: 100%;
-      height: 500px;
-      border: none;
-    }
-    #closeChoose, #closePayment {
+    #closePayment {
       position: absolute;
       right: 15px;
       top: 10px;
@@ -100,6 +95,11 @@
       height: 30px;
       font-weight: bold;
       cursor: pointer;
+    }
+    iframe {
+      width: 100%;
+      height: 500px;
+      border: none;
     }
   </style>
 </head>
@@ -118,8 +118,7 @@
   <input type="text" id="productName" placeholder="Product Name">
   <textarea id="productDesc" placeholder="Description"></textarea>
   <input type="text" id="productPrice" placeholder="Price (e.g. 200 GHS)">
-  <input type="text" id="onlinePayment" placeholder="Online Payment URL (for card/MoMo)">
-  <input type="text" id="alternatePayment" placeholder="Alternate Payment URL (e.g. WhatsApp Pay, CashApp)">
+  <input type="text" id="customPayment" placeholder="Custom Payment Form URL (hidden)">
   <button onclick="addProduct()">Add Product</button>
 
   <h2>All Products</h2>
@@ -129,18 +128,7 @@
   <button onclick="startAutoSend()">🚀 Start Auto Send</button>
 </section>
 
-<!-- 🪙 Choose Payment Modal -->
-<div id="chooseModal">
-  <div id="chooseContent">
-    <button id="closeChoose" onclick="closeChoose()">✖</button>
-    <h2>Select How You’d Like to Pay</h2>
-    <p>Choose your preferred payment option below:</p>
-    <button id="chooseOnline" style="background:#007bff;">💳 Secure Online Payment</button>
-    <button id="chooseAlt" style="background:#ff9800;">🔗 Alternate Payment Page</button>
-  </div>
-</div>
-
-<!-- 💳 Payment Frame Modal -->
+<!-- 💳 Hidden Payment Modal -->
 <div id="paymentModal">
   <div id="paymentContent">
     <button id="closePayment" onclick="closePayment()">✖</button>
@@ -167,17 +155,16 @@
     const name = document.getElementById('productName').value.trim();
     const desc = document.getElementById('productDesc').value.trim();
     const price = document.getElementById('productPrice').value.trim();
-    const onlinePayment = document.getElementById('onlinePayment').value.trim();
-    const alternatePayment = document.getElementById('alternatePayment').value.trim();
+    const customPayment = document.getElementById('customPayment').value.trim();
 
     if (!name || !price) return alert("Product name and price required.");
 
-    const product = { name, desc, price, onlinePayment, alternatePayment, sold: false };
+    const product = { name, desc, price, customPayment, sold: false };
     products.push(product);
     renderProducts();
   }
 
-  // Render product list
+  // Render products
   function renderProducts() {
     const list = document.getElementById("productList");
     list.innerHTML = "";
@@ -188,7 +175,7 @@
           <p>${p.desc}</p>
           <strong>Price:</strong> ${p.price}<br>
           ${p.sold ? '<em>Marked as Sold</em>' : `
-            <button class="buy-btn" onclick="showPaymentOptions(${i})">Buy Now</button>
+            <button class="buy-btn" onclick="openPayment(${i})">Buy Now</button>
           `}
           <div class="product-actions">
             <button class="sold-btn" onclick="markSold(${i})">Mark as Sold</button>
@@ -199,6 +186,7 @@
     });
   }
 
+  // Delete product
   function deleteProduct(index) {
     if (confirm("Are you sure you want to delete this product?")) {
       products.splice(index, 1);
@@ -206,52 +194,34 @@
     }
   }
 
+  // Mark product as sold
   function markSold(index) {
     products[index].sold = true;
     renderProducts();
   }
 
-  // Payment choice modal
-  function showPaymentOptions(index) {
-    selectedProduct = products[index];
-    document.getElementById('chooseModal').style.display = 'flex';
-  }
-
-  document.getElementById('chooseOnline').onclick = () => {
-    if (!selectedProduct) return;
-    closeChoose();
-    if (selectedProduct.onlinePayment) openInDashboard(selectedProduct.onlinePayment);
-    else alert("No online payment link found for this item.");
-  };
-
-  document.getElementById('chooseAlt').onclick = () => {
-    if (!selectedProduct) return;
-    closeChoose();
-    if (selectedProduct.alternatePayment) openInDashboard(selectedProduct.alternatePayment);
-    else alert("No alternate payment link found for this item.");
-  };
-
-  function closeChoose() {
-    document.getElementById('chooseModal').style.display = 'none';
-  }
-
-  function openInDashboard(url) {
+  // Open custom payment form (hidden link)
+  function openPayment(index) {
+    const product = products[index];
+    if (!product.customPayment) return alert("No payment form link found for this item.");
     const frame = document.getElementById('paymentFrame');
-    frame.src = url;
+    frame.src = product.customPayment;
     document.getElementById('paymentModal').style.display = 'flex';
   }
 
+  // Close payment modal
   function closePayment() {
     document.getElementById('paymentModal').style.display = 'none';
     document.getElementById('paymentFrame').src = '';
   }
 
-  // Auto send
+  // Auto send simulation
   function startAutoSend() {
-    if (contacts.length === 0 || products.length === 0) return alert("Add contacts and products first!");
-    alert("🚀 Auto sending started...");
+    if (contacts.length === 0 || products.length === 0)
+      return alert("Add contacts and products first!");
+    alert("🚀 Auto sending started (simulation)...");
   }
 </script>
 
 </body>
-    </html>
+</html>
