@@ -143,16 +143,18 @@ th { background:#f3f4f6; }
 <header>📦 ChatSender — Admin Dashboard</header>
 <div class="wrap">
 
-<!-- Add Product / Job Card -->
-<div class="card">
-  <h3>Add Product / Job</h3>
-  <div class="small">Select category. Use "Find Jobs" for job listings.</div>
-  <label>Category</label>
-  <select id="category">
-    <option>Electronics</option><option>Fashion</option><option>Home</option><option>Accessories</option>
-    <option>Foods</option><option>Rings</option><option>Toys</option><option>Cars</option><option>Trucks</option>
-    <option>Find Jobs</option>
-  </select>
+<div id="electronicsForm" class="categoryForm" style="display:none;">
+  <label>Product Name</label>
+  <input id="electronicsName" placeholder="Example: Samsung TV 55 inch">
+  <label>Description</label>
+  <textarea id="electronicsDesc" placeholder="Example: Smart 4K LED television"></textarea>
+  <label>Price (USD)</label>
+  <input id="electronicsPrice" type="number" step="0.01" placeholder="Example: 899.99">
+  <label>Custom Payment Link</label>
+  <input id="electronicsPayment" placeholder="Example: https://pay.example.com/tv55">
+  <label>Upload Image</label>
+  <input id="electronicsImage" type="file" accept="image/*">
+</div>
 
   <div id="productFields">
     <label>Product Name</label>
