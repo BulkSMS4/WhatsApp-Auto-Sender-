@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shop Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f8f8f8;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #25D366;
+      color: white;
+      text-align: center;
+      padding: 1rem;
+      font-size: 1.4em;
+      font-weight: bold;
+    }
+    section {
+      padding: 1rem;
+      max-width: 900px;
+      margin: auto;
+    }
+    .product {
+      background: white;
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .sold {
+      background: #ffeaea;
+      opacity: 0.7;
+      text-decoration: line-through;
+    }
+    .product-actions button {
+      margin-right: 6px;
+      margin-top: 5px;
+      padding: 7px 10px;
+      border: none;
+      border-radius: 5px;
+      color: white;
+      cursor: pointer;
+    }
+    .buy-btn { background: #007bff; }
+    .delete-btn { background: #ff4d4d; }
+    .sold-btn { background: #ff9800; }
+    .edit-btn { background: #17a2b8; }
+
+    /* Modals */
+    .modal {
+      display: none;
+      position: fixed;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: #fff;
+      width: 90%;
+      max-width: 600px;
+      border-radius: 10px;
+      padding: 1.5rem;
+      text-align: center;
+      position: relative;
+    }
+    .modal-content iframe {
+      width: 100%;
+      height: 500px;
+      border: none;
+    }
+    .close-btn {
+      position: absolute;
+      right: 15px;
+      top: 10px;
+      background: #ff4d4d;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button {
+      padding: 10px 15px;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<header>🛍️ Product Dashboard</header>
+<section id="productList"></section>
+
+<!-- 🚚 Delivery Details Modal -->
+<div id="deliveryModal" class="modal">
+  <div class="modal-content">
+    <button class="close-btn" onclick="closeDelivery()">✖</button>
+    <h2>Enter Delivery Details</h2>
+    <input type="text" id="buyerName" placeholder="Full Name" required>
+    <input type="text" id="buyerPhone" placeholder="Phone Number" required>
+    <input type="email" id="buyerEmail" placeholder="Email" required>
+    <textarea id="buyerAddress" placeholder="Delivery Address" required></textarea>
+    <button onclick="submitDelivery()">Continue to Payment</button>
+  </div>
+</div>
+
+<!-- 💳 Payment Options Modal -->
+<div id="chooseModal" class="modal">
+  <div class="modal-content">
+    <button class="close-btn" onclick="closeChoose()">✖</button>
+    <h2>Choose Payment Option</h2>
+    <p>Please select how you’d like to pay for <b id="selectedProductName"></b></p>
+    <button id="choosePaystack" style="background:#007bff; color:white;">💳 Secure Paystack Payment</button>
+    <button id="chooseAlt" style="background:#ff9800; color:white;">🔗 Alternate Payment</button>
+  </div>
+</div>
+
+<!-- 💰 Paystack Iframe Modal -->
+<div id="paymentModal" class="modal">
+  <div class="modal-content">
+    <button class="close-btn" onclick="closePayment()">✖</button>
+    <iframe id="paymentFrame"></iframe>
+  </div>
+</div>
+
+<script>
+  let products = [];
+  let selectedProduct = null;
+  let buyerInfo = {};
+
+  async function loadProducts() {
+    const res = await fetch("/api/products");
+    products = await res.json();
+    renderProducts();
+  }
+
+  function renderProducts() {
+    const list = document.getElementById("productList");
+    list.innerHTML = "";
+    products.forEach(p => {
+      list.innerHTML += `
+        <div class="product ${p.sold ? 'sold' : ''}">
+          <h3>${p.name}</h3>
+          <p>${p.desc}</p>
+          <p><strong>Price:</strong> ${p.price}</p>
+          ${p.sold ? '<b>🚫 SOLD OUT</b>' : `<button class="buy-btn" onclick="openDelivery('${p.id}')">Buy Now</button>`}
+          <div class="product-actions">
+            <button class="edit-btn" onclick="editProduct('${p.id}')">Edit</button>
+            <button class="sold-btn" onclick="markSold('${p.id}')">Mark Sold</button>
+            <button class="delete-btn" onclick="deleteProduct('${p.id}')">Delete</button>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  // 🚚 Ask for delivery info first
+  function openDelivery(id) {
+    selectedProduct = products.find(p => p.id === id);
+    document.getElementById("deliveryModal").style.display = "flex";
+  }
+
+  function closeDelivery() {
+    document.getElementById("deliveryModal").style.display = "none";
+  }
+
+  // ✅ Continue to payment after delivery info
+  function submitDelivery() {
+    buyerInfo = {
+      name: document.getElementById("buyerName").value.trim(),
+      phone: document.getElementById("buyerPhone").value.trim(),
+      email: document.getElementById("buyerEmail").value.trim(),
+      address: document.getElementById("buyerAddress").value.trim()
+    };
+    if (!buyerInfo.name || !buyerInfo.phone || !buyerInfo.email || !buyerInfo.address)
+      return alert("Please fill all fields.");
+
+    closeDelivery();
+    document.getElementById("selectedProductName").innerText = selectedProduct.name;
+    document.getElementById("chooseModal").style.display = "flex";
+  }
+
+  function closeChoose() {
+    document.getElementById("chooseModal").style.display = "none";
+  }
+
+  // 💳 Handle payment choices
+  document.getElementById("choosePaystack").onclick = async () => {
+    try {
+      const res = await fetch("/api/paystack/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: buyerInfo.email,
+          amount: selectedProduct.price.replace(/\D/g, ""),
+          productId: selectedProduct.id
+        })
+      });
+      const data = await res.json();
+      if (data.authorization_url) {
+        document.getElementById("paymentFrame").src = data.authorization_url;
+        document.getElementById("paymentModal").style.display = "flex";
+      } else alert("Payment init failed: " + (data.error || "Unknown error"));
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong.");
+    }
+    closeChoose();
+  };
+
+  document.getElementById("chooseAlt").onclick = () => {
+    if (selectedProduct.alternatePayment) {
+      document.getElementById("paymentFrame").src = selectedProduct.alternatePayment;
+      document.getElementById("paymentModal").style.display = "flex";
+    } else alert("No alternate payment available.");
+    closeChoose();
+  };
+
+  function closePayment() {
+    document.getElementById("paymentModal").style.display = "none";
+    document.getElementById("paymentFrame").src = "";
+  }
+
+  // 🧱 Admin actions
+  async function deleteProduct(id) {
+    const password = prompt("Admin password to delete:");
+    if (!password) return;
+    const res = await fetch(`/api/delete/${id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert("Deleted!");
+      loadProducts();
+    } else alert(data.error || "Failed");
+  }
+
+  async function markSold(id) {
+    const password = prompt("Admin password to mark as sold:");
+    if (!password) return;
+    const res = await fetch(`/api/mark-sold/${id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert("Marked as sold!");
+      loadProducts();
+    } else alert(data.error || "Failed");
+  }
+
+  async function editProduct(id) {
+    const password = prompt("Admin password to edit:");
+    if (!password) return;
+    const p = products.find(pr => pr.id === id);
+    const name = prompt("Edit name:", p.name);
+    const desc = prompt("Edit description:", p.desc);
+    const price = prompt("Edit price:", p.price);
+    const onlinePayment = prompt("Edit online payment link:", p.onlinePayment);
+    const alternatePayment = prompt("Edit alternate payment link:", p.alternatePayment);
+
+    const res = await fetch(`/api/edit-product/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password, name, desc, price, onlinePayment, alternatePayment })
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert("Updated!");
+      loadProducts();
+    } else alert(data.error || "Failed");
+  }
+
+  loadProducts();
+</script>
+</body>
+  </html>
