@@ -31,13 +31,13 @@ const ADMIN_PHONE = process.env.ADMIN_PHONE || "+233593231752";
 const ADMIN_NAME = process.env.ADMIN_NAME || "FATI IBRAHIM";
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8003409315:AAEVIPsOYnF8mBaT8l-kmzWucHUTu9Yo8AY";
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "8085649636";
-const SMTP_HOST = process.env.SMTP_HOST || "";
+const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
 const SMTP_PORT = process.env.SMTP_PORT || "465";
 const SMTP_USER = process.env.SMTP_USER || "johnofosu20@gmail.com";
 const SMTP_PASS = process.env.SMTP_PASS || "xerl ulwp moat hnrp";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "johnofosu20@gmail.com";
 const WHATSAPP_GROUP_IDS = (process.env.WHATSAPP_GROUP_IDS || "").split(",").map(s=>s.trim()).filter(Boolean);
-const AUTO_MESSAGES = (process.env.AUTO_MESSAGES || "false").toLowerCase() === "true";
+const AUTO_MESSAGES = (process.env.AUTO_MESSAGES || "false").toLowerCase() === "false";
 // You can set WEBHOOK_VERIFY_TOKEN in .env if you want webhook verification
 const WEBHOOK_VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || "PAST_IT_HERE";
 
