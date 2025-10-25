@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🛍️ Foster Marketplace</title>
+<style>
+body {font-family:"Poppins",sans-serif; background:#f9f9f9; margin:0; padding:0;}
+header {background:#25D366;color:white;text-align:center;padding:1rem;font-size:1.6em;font-weight:bold;position:relative;}
+main {max-width:1100px;margin:20px auto;padding:10px;}
+.category {margin-top:30px;}
+.category h2 {background:#25D366;color:white;padding:10px;border-radius:8px;}
+.products {display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:15px;}
+.product {background:white;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.1);overflow:hidden;transition:transform .2s ease; position: relative;}
+.product:hover {transform:scale(1.02);}
+.product img {width:100%; height:180px; object-fit:cover;}
+.info {padding:10px;}
+.info h3 {margin:0; font-size:1.1em; color:#333;}
+.info p {color:#555; font-size:0.9em; margin:6px 0;}
+.price {color:#25D366; font-weight:bold;}
+.buy-btn {background:#25D366; color:white; border:none; width:100%; padding:10px; cursor:pointer; border-radius:0 0 10px 10px; font-weight:bold;}
+.buy-btn:hover {background:#1ebe5c;}
+/* Delivery Form Modal */
+#deliveryFormModal {display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:white; border-radius:10px; padding:20px; width:90%; max-width:480px; max-height:90vh; overflow:auto; z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,0.3);}
+#deliveryFormModal h3 {margin-top:0;}
+#deliveryFormModal label {display:block; margin-top:10px;}
+#deliveryFormModal input, #deliveryFormModal select, #deliveryFormModal textarea {width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; margin-top:4px;}
+#deliveryFormModal button {margin-top:12px; background:#25D366; color:white; padding:10px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;}
+#deliveryFormModal button.secondary {background:#ccc; color:#111;}
+/* Track Modal */
+#trackModal {display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; border-radius:10px; padding:20px; width:90%; max-width:400px; max-height:80vh; overflow:auto; z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,0.3);}
+#trackModal h3 {margin-top:0;}
+#trackModal input {width:100%; padding:8px; margin-top:6px; border-radius:6px; border:1px solid #ccc;}
+#trackModal button {margin-top:10px; background:#25D366; color:white; border:none; padding:10px; width:100%; border-radius:6px; cursor:pointer;}
+#trackModal button.secondary {background:#ccc; color:#111; margin-top:6px;}
+</style>
+</head>
+<body>
+
+<header>
+🛍️ Foster Marketplace
+<button style="position:absolute;right:12px;top:12px;padding:6px 10px;border:none;border-radius:6px;background:#fff;color:#25D366;cursor:pointer;font-weight:bold;" onclick="openTrackModal()">Track Package</button>
+</header>
+
+<main id="storeContainer">
+  <div id="loading">Loading store products...</div>
+</main>
+
+<!-- Delivery Form Modal -->
+<div id="deliveryFormModal">
+  <h3>Delivery Information</h3>
+  <input type="hidden" id="currentProductId">
+  <label>Name</label>
+  <input type="text" id="buyerName" placeholder="Full Name" required>
+  <label>Phone Number</label>
+  <input type="text" id="buyerPhone" placeholder="e.g. +233501234567" required>
+  <label>Address</label>
+  <textarea id="buyerAddress" placeholder="Full delivery address" required></textarea>
+  <label>Delivery Type</label>
+  <select id="deliveryType">
+    <option>Standard</option>
+    <option>Express</option>
+  </select>
+  <button id="submitDelivery">Submit & Get Payment Link</button>
+  <button class="secondary" onclick="closeDeliveryForm()">Cancel</button>
+  <p id="deliveryMsg" style="margin-top:10px; font-weight:bold;"></p>
+</div>
+
+<!-- Track Package Modal -->
+<div id="trackModal">
+  <h3>📦 Track Your Package</h3>
+  <input type="text" id="trackingId" placeholder="Enter Tracking ID">
+  <button onclick="checkTracking()">Check Status</button>
+  <button class="secondary" onclick="closeTrackModal()">Close</button>
+  <p id="trackingResult" style="margin-top:10px; font-weight:bold;"></p>
+</div>
+
+<script>
+async function loadStore() {
+  const res = await fetch('/api/products');
+  const data = await res.json();
+  const container = document.getElementById('storeContainer');
+  container.innerHTML = "";
+
+  if(!data || data.length===0){
+    container.innerHTML="<p>No products found.</p>";
+    return;
+  }
+
+  const categories = {};
+  data.forEach(p=>{
+    if(!categories[p.category]) categories[p.category]=[];
+    categories[p.category].push(p);
+  });
+
+  for(const [cat, items] of Object.entries(categories)){
+    const catDiv = document.createElement('div');
+    catDiv.classList.add('category');
+    catDiv.innerHTML=`<h2>${cat}</h2><div class="products"></div>`;
+    const prodContainer = catDiv.querySelector('.products');
+
+    for(const p of items){
+      const prodDiv = document.createElement('div');
+      prodDiv.classList.add('product');
+      prodDiv.innerHTML=`
+        <img src="${p.image||'https://via.placeholder.com/400x250?text=No+Image'}" alt="${p.name}">
+        <div class="info">
+          <h3>${p.name}</h3>
+          <p>${p.desc}</p>
+          <p class="price">$${p.price}</p>
+        </div>
+        <button class="buy-btn" onclick="openDeliveryForm('${p.id}')">🛒 Buy Now</button>
+      `;
+      prodContainer.appendChild(prodDiv);
+    }
+    container.appendChild(catDiv);
+  }
+}
+
+function openDeliveryForm(productId){
+  document.getElementById('currentProductId').value = productId;
+  document.getElementById('buyerName').value='';
+  document.getElementById('buyerPhone').value='';
+  document.getElementById('buyerAddress').value='';
+  document.getElementById('deliveryMsg').innerText='';
+  document.getElementById('deliveryFormModal').style.display='block';
+}
+function closeDeliveryForm(){ document.getElementById('deliveryFormModal').style.display='none'; }
+
+document.getElementById('submitDelivery').addEventListener('click', async ()=>{
+  const productId = document.getElementById('currentProductId').value;
+  const name = document.getElementById('buyerName').value.trim();
+  const phone = document.getElementById('buyerPhone').value.trim();
+  const address = document.getElementById('buyerAddress').value.trim();
+  const type = document.getElementById('deliveryType').value;
+
+  if(!name||!phone||!address){ alert('Please fill all fields!'); return; }
+
+  const res = await fetch('/api/buy',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ productId,name,phone,address,type })
+  });
+  const data = await res.json();
+  if(data.success){
+    document.getElementById('deliveryMsg').innerText=`✔ Delivery info saved! Tracking ID: ${data.trackingId}`;
+    // Open payment link
+    window.open(data.paymentLink,'_blank');
+  } else {
+    document.getElementById('deliveryMsg').innerText='❌ Error: '+(data.error||'Failed');
+  }
+});
+
+// Track package modal
+function openTrackModal(){ document.getElementById('trackModal').style.display='block'; }
+function closeTrackModal(){ document.getElementById('trackModal').style.display='none'; }
+async function checkTracking(){
+  const id = document.getElementById('trackingId').value.trim();
+  const resultEl = document.getElementById('trackingResult');
+  if(!id){ alert('Enter Tracking ID'); return; }
+  try{
+    const res = await fetch(`/api/tracking/${id}`);
+    if(!res.ok) throw new Error('Not found');
+    const data = await res.json();
+    resultEl.innerHTML=`Status: <strong>${data.status}</strong><br>Expected Delivery: <strong>${data.expectedDelivery}</strong>`;
+  }catch(e){ resultEl.innerText='❌ Tracking ID not found'; }
+}
+
+loadStore();
+</script>
+</body>
+  </html>
