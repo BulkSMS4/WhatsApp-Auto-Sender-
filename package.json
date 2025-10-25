@@ -3,15 +3,17 @@
   "version": "1.0.0",
   "description": "Automated WhatsApp message sender dashboard (no Paystack)",
   "main": "server.js",
-  "type": "module",
+  "type": "commonjs",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.19.2",
     "body-parser": "^1.20.2",
-    "node-fetch": "^3.3.2",
-    "dotenv": "^16.4.5"
+    "node-fetch": "^2.6.7",
+    "dotenv": "^16.4.5",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.3"
   },
   "engines": {
     "node": ">=18.x"
