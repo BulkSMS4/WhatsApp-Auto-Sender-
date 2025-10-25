@@ -1,12 +1,17 @@
 /**
  * server.js
+ * Full backend for ChatSender admin + store (CommonJS)
  *
- * Full backend for ChatSender admin + store.
- * - Save as server.js (CommonJS)
- * - Run: npm install express multer dotenv node-fetch nodemailer
- * - Then: node server.js
+ * Usage:
+ *   npm install express multer dotenv node-fetch nodemailer
+ *   node server.js
  *
- * Uses .env variables exactly as you provided.
+ * Environment variables (example names - keep same as your .env):
+ *   PORT, ADMIN_PASSWORD, WHATSAPP_TOKEN, PHONE_NUMBER_ID, ADMIN_PHONE, ADMIN_NAME,
+ *   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
+ *   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, ADMIN_EMAIL,
+ *   WHATSAPP_GROUP_IDS, AUTO_MESSAGES (true/false), WEBHOOK_VERIFY_TOKEN,
+ *   BULK_THROTTLE_MS (optional, default 350)
  */
 
 require("dotenv").config();
@@ -22,7 +27,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ---------- ENV (keep exactly what you provided) ----------
+// ---------- ENV ----------
 const PORT = process.env.PORT || 10000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Forgetme";
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || "EAAbnZCZA0lZBioBPZC1Bl4LKGbmeamRE9s5NZC9BUzxfX1f4agMEZBIYvMX04Wv8C5K0ZBvkg78azsQInnIZAWAFq7SQzfSgtRIBheqXobkC73i3aYWfQH6z70Mq8uhoBjOvlzgdj1dYJf0nvqatB1UNcO8zQmNxhDor0Ptlp153BSiiZBc4j4ZBJCpbPYddnuEdT1PZBpHFDgZD";
@@ -31,19 +36,19 @@ const ADMIN_PHONE = process.env.ADMIN_PHONE || "+233593231752";
 const ADMIN_NAME = process.env.ADMIN_NAME || "FATI IBRAHIM";
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8003409315:AAEVIPsOYnF8mBaT8l-kmzWucHUTu9Yo8AY";
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "8085649636";
-const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
+const SMTP_HOST = process.env.SMTP_HOST || "";
 const SMTP_PORT = process.env.SMTP_PORT || "465";
 const SMTP_USER = process.env.SMTP_USER || "johnofosu20@gmail.com";
 const SMTP_PASS = process.env.SMTP_PASS || "xerl ulwp moat hnrp";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "johnofosu20@gmail.com";
 const WHATSAPP_GROUP_IDS = (process.env.WHATSAPP_GROUP_IDS || "").split(",").map(s=>s.trim()).filter(Boolean);
-const AUTO_MESSAGES = (process.env.AUTO_MESSAGES || "false").toLowerCase() === "false";
-// You can set WEBHOOK_VERIFY_TOKEN in .env if you want webhook verification
+const AUTO_MESSAGES = (process.env.AUTO_MESSAGES || "false").toLowerCase() === "true";
 const WEBHOOK_VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || "PAST_IT_HERE";
+const BULK_THROTTLE_MS = Number(process.env.BULK_THROTTLE_MS || 350);
 
 // ---------- data paths ----------
 const DATA_DIR = path.join(__dirname, "data");
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const PRODUCTS_FILE = path.join(DATA_DIR, "products.json");
 const BUYERS_FILE = path.join(DATA_DIR, "buyers.json");
@@ -72,9 +77,8 @@ function writeJSON(filePath, data) {
 
 // ---------- storage for uploads ----------
 const UPLOADS_DIR = path.join(__dirname, "uploads");
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
-// multer storage (keep original extension)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOADS_DIR),
   filename: (req, file, cb) => {
@@ -109,9 +113,22 @@ function genId() { return Date.now().toString() + crypto.randomBytes(3).toString
 function genMask() { return crypto.randomBytes(4).toString("hex"); }
 function cleanPhone(n) { return ("" + n).replace(/\D/g, ""); }
 
-// send WhatsApp text (uses WhatsApp Cloud API)
+/**
+ * Replace placeholders in a template string.
+ * Supported placeholders: {product}, {price}, {link}, {category}, plus any custom keys in replacements object.
+ * If a placeholder isn't found, it's left as-is.
+ */
+function applyTemplate(template, replacements = {}) {
+  if (!template) return template;
+  return template.replace(/\{([^\}]+)\}/g, (m, key) => {
+    if (replacements.hasOwnProperty(key)) return replacements[key];
+    return m; // leave placeholder if no replacement provided
+  });
+}
+
+// ---------- WhatsApp Cloud API helpers ----------
 async function sendWhatsAppText(to, text) {
-  if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) throw new Error("WhatsApp credentials missing");
+  if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) throw new Error("WhatsApp credentials missing (WHATSAPP_TOKEN / PHONE_NUMBER_ID)");
   const payload = {
     messaging_product: "whatsapp",
     to: cleanPhone(to),
@@ -124,14 +141,14 @@ async function sendWhatsAppText(to, text) {
     body: JSON.stringify(payload)
   });
   const data = await res.json();
-  // log message entry (basic)
+  // log message entry
   const messages = readJSON(MESSAGES_FILE);
   messages.unshift({ id: data?.messages?.[0]?.id || `out_${Date.now()}`, to: cleanPhone(to), text, raw: data, createdAt: nowISO() });
+  if (messages.length > 5000) messages.length = 5000;
   writeJSON(MESSAGES_FILE, messages);
   return data;
 }
 
-// best-effort: ask Graph API contacts endpoint for display name
 async function fetchWhatsAppDisplayName(phone) {
   if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) return null;
   try {
@@ -142,7 +159,6 @@ async function fetchWhatsAppDisplayName(phone) {
       body: JSON.stringify(body)
     });
     const data = await r.json();
-    // path: data.contacts[0].profile.name
     if (data && data.contacts && data.contacts[0] && data.contacts[0].profile && data.contacts[0].profile.name) {
       return data.contacts[0].profile.name;
     }
@@ -182,18 +198,7 @@ app.get("/api/products", (req, res) => {
   res.json(products);
 });
 
-/**
- * Upload product (image + fields)
- * expects FormData with:
- * - password
- * - name (or 'name' field)
- * - desc
- * - price
- * - category
- * - website (alternatePayment)
- * - paymentLink (onlinePayment)
- * - image (file)
- */
+// Upload product
 app.post("/api/upload-product", upload.single("image"), (req, res) => {
   try {
     const fields = req.body || {};
@@ -233,7 +238,6 @@ app.post("/api/upload-product", upload.single("image"), (req, res) => {
     products.unshift(product);
     writeJSON(PRODUCTS_FILE, products);
 
-    // return masked link and product
     res.json({ success: true, product, maskedLink: masked });
   } catch (err) {
     console.error("upload-product error", err);
@@ -241,7 +245,7 @@ app.post("/api/upload-product", upload.single("image"), (req, res) => {
   }
 });
 
-// Masked product link - logs and redirects to store view (so store opens inline, payment hidden)
+// Masked product link
 app.get("/p/:code", (req, res) => {
   try {
     const code = req.params.code;
@@ -266,7 +270,7 @@ app.get("/p/:code", (req, res) => {
     product.clicks = (product.clicks || 0) + 1;
     writeJSON(PRODUCTS_FILE, products);
 
-    // redirect to store page with view param (store will open inline modal)
+    // redirect to store page with view param so frontend can open the modal
     res.redirect(`/stores.html?view=${product.id}`);
   } catch (e) {
     console.error(e);
@@ -295,7 +299,6 @@ app.delete("/api/delete-product/:id", (req, res) => {
   const prod = products.find(p => p.id === id);
   products = products.filter(p => p.id !== id);
   writeJSON(PRODUCTS_FILE, products);
-  // delete image file if exists
   try {
     if (prod && prod.image) {
       const f = path.join(__dirname, prod.image);
@@ -339,7 +342,7 @@ app.post("/api/save-buyer", async (req, res) => {
     buyers.unshift(buyer);
     writeJSON(BUYERS_FILE, buyers);
 
-    // notify buyer by whatsapp (confirmation)
+    // notify buyer by whatsapp (confirmation) - best-effort
     try {
       const buyerMsg = `✅ Hi ${buyer.name}, we received your order for *${buyer.product}*. Total: ${buyer.price}. We'll be in touch.`;
       await sendWhatsAppText(buyer.phone, buyerMsg);
@@ -400,25 +403,69 @@ app.post("/api/send-whatsapp", async (req, res) => {
   }
 });
 
-// send bulk (admin)
+/**
+ * POST /api/send-bulk
+ * body: {
+ *   numbers: ["233501234567", ...] OR "233...,233..."
+ *   message: "Hello {product} ..."  // can include placeholders
+ *   productId: optional product id (if provided placeholders {product},{price},{link} will be replaced)
+ *   replacements: optional object { name: "John", discount: "10%" } - allows custom placeholders
+ *   password: admin password required
+ * }
+ */
 app.post("/api/send-bulk", async (req, res) => {
   try {
-    const { numbers, message, password } = req.body;
+    let { numbers, message, productId, replacements, password } = req.body;
     if (password !== ADMIN_PASSWORD) return res.status(403).json({ error: "Unauthorized" });
-    if (!Array.isArray(numbers) || numbers.length === 0) return res.status(400).json({ error: "No numbers" });
+
+    if (!message) return res.status(400).json({ error: "Missing message" });
+
+    // normalize numbers
+    if (!numbers) return res.status(400).json({ error: "Missing numbers" });
+    if (typeof numbers === "string") numbers = numbers.split(/[\s,;]+/).filter(Boolean);
+    if (!Array.isArray(numbers) || numbers.length === 0) return res.status(400).json({ error: "No numbers provided" });
+
+    // load product replacements if productId provided
+    let product = null;
+    if (productId) {
+      const products = readJSON(PRODUCTS_FILE);
+      product = products.find(p => p.id === productId || p.maskedLink === productId);
+    }
 
     const results = [];
-    for (const num of numbers) {
+    for (const rawNum of numbers) {
+      const num = cleanPhone(rawNum);
+      if (!num) {
+        results.push({ to: rawNum, ok: false, error: "Invalid number" });
+        continue;
+      }
       try {
+        // build replacements object
+        const baseRepl = Object.assign({}, replacements || {});
+        if (product) {
+          baseRepl.product = product.name || "";
+          baseRepl.price = product.price || "";
+          // full absolute link for maskedLink
+          const baseUrl = (process.env.BASE_URL || "").replace(/\/$/, "") || (`http://localhost:${PORT}`);
+          baseRepl.link = product.maskedLink ? (product.maskedLink.startsWith("http") ? product.maskedLink : `${baseUrl}${product.maskedLink}`) : (product.onlinePayment || "");
+          baseRepl.category = product.category || "";
+        }
+
+        const msgText = applyTemplate(message, baseRepl);
+
+        // try to fetch display name and personalize greeting
         const name = await fetchWhatsAppDisplayName(num);
-        const body = name ? `Hi ${name},\n\n${message}` : message;
-        const r = await sendWhatsAppText(num, body);
+        const finalBody = name ? `Hi ${name},\n\n${msgText}` : msgText;
+
+        const r = await sendWhatsAppText(num, finalBody);
         results.push({ to: num, ok: true, raw: r });
-        await new Promise(r => setTimeout(r, 350)); // throttle
+        // throttle between sends to avoid rate limits
+        await new Promise(rp => setTimeout(rp, BULK_THROTTLE_MS));
       } catch (err) {
         results.push({ to: num, ok: false, error: err.message });
       }
     }
+
     res.json({ success: true, results });
   } catch (err) {
     console.error("send-bulk error", err);
@@ -439,7 +486,6 @@ async function rotateAndSend() {
     if (idx >= products.length) idx = 0;
     const product = products[idx];
 
-    // message
     const msg = `📦 New Product: ${product.name}\n${product.desc}\nPrice: ${product.price}\nCheck: ${product.maskedLink}`;
     const results = [];
     for (const s of subs) {
@@ -448,14 +494,13 @@ async function rotateAndSend() {
         const body = name ? `Hi ${name},\n\n${msg}` : msg;
         await sendWhatsAppText(s, body);
         results.push({ to: s, ok: true });
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, BULK_THROTTLE_MS));
       } catch (e) {
         results.push({ to: s, ok: false, error: e.message });
       }
     }
     rotation.index = idx;
     writeJSON(ROTATION_FILE, rotation);
-    // log in messages
     const messages = readJSON(MESSAGES_FILE);
     messages.unshift({ id: `rot_${Date.now()}`, type: "rotation", productId: product.id, results, createdAt: nowISO() });
     writeJSON(MESSAGES_FILE, messages);
@@ -464,10 +509,8 @@ async function rotateAndSend() {
     console.error("rotateAndSend error", e.message);
   }
 }
-
 if (AUTO_MESSAGES) {
-  // run immediately once then every 10 minutes
-  setTimeout(() => { rotateAndSend(); }, 5000);
+  setTimeout(() => rotateAndSend(), 5000);
   setInterval(rotateAndSend, 10 * 60 * 1000);
 }
 
@@ -500,12 +543,11 @@ app.get("/webhook", (req, res) => {
 app.post("/webhook", (req, res) => {
   try {
     const body = req.body;
-    // store raw webhook
     const msgs = readJSON(MESSAGES_FILE);
     msgs.unshift({ id: `webhook_${Date.now()}`, body, receivedAt: nowISO() });
-    if (msgs.length > 3000) msgs.length = 3000;
+    if (msgs.length > 5000) msgs.length = 5000;
     writeJSON(MESSAGES_FILE, msgs);
-    // parse and store statuses/inbound messages if present (best-effort)
+
     if (body.entry && Array.isArray(body.entry)) {
       for (const entry of body.entry) {
         if (!entry.changes) continue;
@@ -536,10 +578,11 @@ app.post("/webhook", (req, res) => {
 // simple health
 app.get("/api/health", (req, res) => res.json({ ok: true, time: nowISO() }));
 
-// catch-all GET: serve admin.html by default (if you want root to be admin)
+// serve admin by default if exists
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "admin.html"));
+  const adminFile = path.join(__dirname, "public", "admin.html");
+  if (fs.existsSync(adminFile)) return res.sendFile(adminFile);
+  res.send("ChatSender backend running");
 });
 
-// start
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
