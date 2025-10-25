@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChatSender — Admin Dashboard</title>
+<link href="https://fonts.googleapis.com/css?family=Inter:400,600,700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #25D366;
+  --bg: #f9fafb;
+  --card: #fff;
+  --muted: #6b7280;
+}
+body {
+  font-family: 'Inter', Arial, sans-serif;
+  background: var(--bg);
+  color: #111;
+  margin: 0;
+}
+header {
+  background: var(--green);
+  color: #fff;
+  padding: 16px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.2rem;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.wrap {
+  max-width: 1200px;
+  margin: 20px auto;
+  padding: 0 16px;
+}
+.card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
+.card h3 {
+  margin-bottom: 8px;
+  font-size: 1.1rem;
+  color: #111;
+}
+.small {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+input, textarea, select, button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 6px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  font-family: inherit;
+  font-size: 14px;
+}
+textarea { min-height: 90px; }
+button {
+  background: var(--green);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+button:hover { opacity: 0.9; }
+button.secondary {
+  background: #f3f4f6;
+  color: #111;
+  border: 1px solid #d1d5db;
+}
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill,minmax(240px,1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.prod {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: transform 0.2s;
+}
+.prod:hover { transform: translateY(-2px); }
+.prod img {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+}
+.label {
+  display: inline-block;
+  background: #f0fdf4;
+  color: #064e3b;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  margin-top: 8px;
+}
+.actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.footer {
+  text-align: center;
+  padding: 16px;
+  background: #0f1720;
+  color: #fff;
+  border-radius: 8px;
+  margin-top: 20px;
+  font-size: 13px;
+}
+#previewModal {
+  position: fixed;
+  left:0; top:0;
+  width: 100%; height: 100%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.5);
+  z-index: 10000;
+}
+#previewModalContent {
+  background:#fff;
+  border-radius:12px;
+  padding:20px;
+  max-width: 700px;
+  width: 90%;
+  max-height: 90vh;
+  overflow:auto;
+}
+table { width: 100%; border-collapse: collapse; margin-top:12px;}
+th, td { border:1px solid #e5e7eb; padding:8px; font-size:13px; text-align:left;}
+th { background:#f3f4f6; }
+.status-dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:4px; }
+</style>
+</head>
+<body>
+<header>📦 ChatSender — Admin Dashboard</header>
+<div class="wrap">
+
+<!-- Add Product / Job Card -->
+<div class="card">
+  <h3>Add Product / Job</h3>
+  <div class="small">Select category. Use "Find Jobs" for job listings.</div>
+  <label>Category</label>
+  <select id="category">
+    <option>Electronics</option><option>Fashion</option><option>Home</option><option>Accessories</option>
+    <option>Foods</option><option>Rings</option><option>Toys</option><option>Cars</option><option>Trucks</option>
+    <option>Find Jobs</option>
+  </select>
+
+  <div id="productFields">
+    <label>Product Name</label>
+    <input id="productName" placeholder="Product name">
+    <label>Description</label>
+    <textarea id="productDesc" placeholder="Short description"></textarea>
+    <label>Price (USD)</label>
+    <input id="productPrice" type="number" step="0.01">
+    <label>Website</label>
+    <input id="productWebsite" placeholder="https://example.com/item">
+    <label>Payment Link</label>
+    <input id="productPayment" placeholder="https://payment.com/pay/xyz">
+    <label>Upload Image</label>
+    <input id="productImage" type="file" accept="image/*">
+  </div>
+
+  <div id="jobFields" style="display:none;">
+    <label>Job Title</label>
+    <input id="jobTitle">
+    <label>Description</label>
+    <textarea id="jobDesc"></textarea>
+    <label>Location</label>
+    <input id="jobLocation">
+    <label>Salary</label>
+    <input id="jobSalary">
+    <label>WhatsApp Contact Link</label>
+    <input id="jobContact">
+  </div>
+
+  <div style="display:flex; gap:8px; margin-top:12px;">
+    <input id="adminPass" placeholder="Admin password">
+    <button id="btnSave">Save</button>
+  </div>
+  <div id="saveResult" class="small muted" style="margin-top:6px;"></div>
+</div>
+
+<!-- Bulk Sender -->
+<div class="card">
+  <h3>Bulk Sender</h3>
+  <div class="small">Paste numbers (comma or newline separated).</div>
+  <textarea id="bulkNumbers" rows="3" placeholder="233501234567,233599999999"></textarea>
+  <label>Message (use {product}, {price}, {link}, {category})</label>
+  <textarea id="bulkMessage" rows="3">Check out our {product} for {price} — {link}</textarea>
+  <div style="display:flex; gap:8px; margin-top:8px;">
+    <button id="btnSendBulk">Send Bulk</button>
+  </div>
+  <div id="bulkResult" class="small muted" style="margin-top:6px;"></div>
+</div>
+
+<!-- Products Grid -->
+<div class="card">
+  <h3>Products / Jobs</h3>
+  <div style="display:flex; gap:8px; margin-top:8px;">
+    <select id="filterCategory"><option>All</option></select>
+    <button id="btnRefresh" class="secondary">Refresh</button>
+  </div>
+  <div id="productsGrid" class="products-grid"></div>
+</div>
+
+<!-- Buyers & Messages -->
+<div class="card">
+  <h3>Buyers / Messages</h3>
+  <div style="display:flex; gap:8px; margin-top:8px;">
+    <input id="buyersPass" placeholder="Admin password">
+    <button id="btnLoadBuyers" class="secondary">Load Buyers</button>
+    <button id="btnRefreshStatus" class="secondary">Refresh Status</button>
+  </div>
+  <div id="buyersWrap"></div>
+</div>
+
+</div>
+
+<!-- Preview Modal -->
+<div id="previewModal">
+  <div id="previewModalContent">
+    <div id="previewContent"></div>
+    <button id="closePreview" class="secondary" style="margin-top:12px;">Close</button>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// Category toggle
+$('category').addEventListener('change', ()=>{
+  if($('category').value==='Find Jobs'){
+    $('productFields').style.display='none';
+    $('jobFields').style.display='';
+  }else{
+    $('productFields').style.display='';
+    $('jobFields').style.display='none';
+  }
+});
+
+// Save product/job
+$('btnSave').addEventListener('click', async ()=>{
+  const pass = $('adminPass').value.trim();
+  if(!pass) return alert('Enter admin password');
+  const fd = new FormData();
+  if($('category').value==='Find Jobs'){
+    fd.append('name',$('jobTitle').value);
+    fd.append('desc',$('jobDesc').value);
+    fd.append('price',$('jobSalary').value);
+    fd.append('category','Find Jobs');
+    fd.append('website',$('jobContact').value);
+  }else{
+    fd.append('name',$('productName').value);
+    fd.append('desc',$('productDesc').value);
+    fd.append('price',$('productPrice').value);
+    fd.append('category',$('category').value);
+    fd.append('website',$('productWebsite').value);
+    fd.append('payment',$('productPayment').value);
+    if($('productImage').files[0]) fd.append('image',$('productImage').files[0]);
+  }
+  fd.append('password',pass);
+  const res = await fetch('/api/upload-product',{method:'POST',body:fd});
+  const data = await res.json();
+  $('saveResult').innerText = data.success ? 'Saved ✓' : 'Error saving';
+  loadProducts();
+});
+
+// Load products/jobs
+async function loadProducts(){
+  const res = await fetch('/api/products');
+  const products = await res.json();
+  const grid = $('productsGrid'); grid.innerHTML='';
+  const selCat = $('filterCategory').value || 'All';
+  (products||[]).forEach(p=>{
+    if(selCat==='All'||p.category===selCat){
+      const div = document.createElement('div'); div.className='prod';
+      div.innerHTML = `
+        <img src="${p.image||'/placeholder.png'}">
+        <div><strong>${p.name}</strong></div>
+        <div class="small">${p.desc||''}</div>
+        <div class="label">${p.category}</div>
+        <div class="actions">
+          <button onclick="preview('${p.id}')">Preview</button>
+        </div>
+      `;
+      grid.appendChild(div);
+    }
+  });
+}
+$('btnRefresh').addEventListener('click',loadProducts);
+loadProducts();
+
+// Preview modal
+window.preview = async function(id){
+  const res = await fetch('/api/products');
+  const p = (await res.json()).find(x=>x.id===id);
+  if(!p) return;
+  $('previewContent').innerHTML = `
+    <h3>${p.name}</h3>
+    <img src="${p.image||'/placeholder.png'}" style="width:100%;max-height:320px;object-fit:cover;border-radius:6px;">
+    <p>${p.desc}</p>
+    <p><strong>Price:</strong> ${p.price} USD</p>
+    <p><strong>Category:</strong> ${p.category}</p>
+    <p><strong>Masked Link:</strong> <a href="${p.maskedLink||''}" target="_blank">${p.maskedLink||''}</a></p>
+  `;
+  $('previewModal').style.display='flex';
+};
+$('closePreview').addEventListener('click',()=>$('previewModal').style.display='none');
+
+// Load buyers
+async function loadBuyers(){
+  const pass = $('buyersPass').value.trim();
+  if(!pass) return alert('Enter admin password');
+  const res = await fetch('/api/buyers?password='+encodeURIComponent(pass));
+  const buyers = await res.json();
+  if(!buyers || !buyers.length){ $('buyersWrap').innerHTML='No buyers yet.'; return; }
+  let html = '<table><tr><th>Name</th><th>Number</th><th>Product</th><th>Tracking ID</th><th>Clicks</th><th>Status</th></tr>';
+  buyers.forEach(b=>{
+    const statusColor = b.delivered ? 'green':'orange';
+    html+=`<tr>
+      <td>${b.name}</td>
+      <td>${b.number}</td>
+      <td>${b.product}</td>
+      <td>${b.trackingId||''}</td>
+      <td>${b.clicks||0}</td>
+      <td><span class="status-dot" style="background:${statusColor}"></span>${b.delivered ? 'Delivered':'Pending'}</td>
+    </tr>`;
+  });
+  html+='</table>';
+  $('buyersWrap').innerHTML=html;
+}
+$('btnLoadBuyers').addEventListener('click',loadBuyers);
+$('btnRefreshStatus').addEventListener('click',loadBuyers);
+
+// Bulk sender
+$('btnSendBulk').addEventListener('click', async ()=>{
+  const numbers = $('bulkNumbers').value.split(/[\s,]+/).filter(x=>x.trim());
+  const message = $('bulkMessage').value.trim();
+  if(!numbers.length || !message) return alert('Numbers and message required');
+  const res = await fetch('/api/send-bulk',{method:'POST',body:JSON.stringify({numbers,message}), headers:{'Content-Type':'application/json'}});
+  const data = await res.json();
+  $('bulkResult').innerText = data.success ? 'Bulk messages sent ✓' : 'Error sending messages';
+});
+</script>
+</body>
+</html>
