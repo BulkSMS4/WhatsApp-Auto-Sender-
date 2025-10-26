@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edit Product — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #25D366;
+  --light-green: #DCF8C6;
+  --bg: #f9fafb;
+  --card: #fff;
+}
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  margin: 0;
+  padding: 0;
+}
+header {
+  background: var(--green);
+  color: #fff;
+  padding: 16px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 18px;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+}
+.wrap {
+  max-width: 700px;
+  margin: 30px auto;
+  background: var(--card);
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+  padding: 24px;
+}
+h2 {
+  color: #111;
+  margin-top: 0;
+  text-align: center;
+}
+label {
+  font-weight: 600;
+  display: block;
+  margin-top: 12px;
+  margin-bottom: 4px;
+}
+input, textarea, select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-family: inherit;
+  font-size: 15px;
+}
+textarea { min-height: 90px; }
+button {
+  width: 100%;
+  background: var(--green);
+  color: #fff;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  margin-top: 16px;
+  cursor: pointer;
+}
+button:hover { opacity: 0.9; }
+#preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+#preview img {
+  width: 90px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+.success {
+  color: green;
+  text-align: center;
+  margin-top: 12px;
+}
+.error {
+  color: red;
+  text-align: center;
+  margin-top: 12px;
+}
+</style>
+</head>
+<body>
+<header>🛠 Edit Product</header>
+<div class="wrap">
+  <h2>Edit Product Details</h2>
+
+  <label>Product Title</label>
+  <input id="name" placeholder="Example: Wireless Headphones">
+
+  <label>Description</label>
+  <textarea id="desc" placeholder="Example: High-quality wireless sound with noise cancellation."></textarea>
+
+  <label>Price (USD)</label>
+  <input id="price" type="number" step="0.01" placeholder="Example: 59.99">
+
+  <label>Category</label>
+  <select id="category">
+    <option>Electronics</option>
+    <option>Fashion</option>
+    <option>Home</option>
+    <option>Accessories</option>
+    <option>Foods</option>
+    <option>Rings</option>
+    <option>Toys</option>
+    <option>Cars</option>
+    <option>Trucks</option>
+    <option>Find Jobs</option>
+  </select>
+
+  <label>Product Website (optional)</label>
+  <input id="website" placeholder="https://example.com/item">
+
+  <label>Upload Images (up to 20)</label>
+  <input id="images" type="file" multiple accept="image/*">
+  <div id="preview"></div>
+
+  <button id="saveBtn">💾 Save Changes</button>
+  <div id="msg"></div>
+</div>
+
+<script>
+const id = new URLSearchParams(window.location.search).get('id');
+const $ = id => document.getElementById(id);
+
+// Fetch product data
+async function loadProduct(){
+  const res = await fetch(`/api/products/${id}`);
+  const p = await res.json();
+  $('name').value = p.name || '';
+  $('desc').value = p.desc || '';
+  $('price').value = p.price || '';
+  $('category').value = p.category || '';
+  $('website').value = p.website || '';
+  if(p.images){
+    p.images.forEach(src=>{
+      const img=document.createElement('img');
+      img.src=src;
+      $('preview').appendChild(img);
+    });
+  }
+}
+loadProduct();
+
+// Save updates
+$('saveBtn').addEventListener('click', async ()=>{
+  const fd = new FormData();
+  fd.append('id', id);
+  fd.append('name', $('name').value);
+  fd.append('desc', $('desc').value);
+  fd.append('price', $('price').value);
+  fd.append('category', $('category').value);
+  fd.append('website', $('website').value);
+  for(const file of $('images').files){
+    fd.append('images', file);
+  }
+  const res = await fetch('/api/update-product', { method: 'POST', body: fd });
+  const data = await res.json();
+  if(data.success){
+    $('msg').innerHTML = '<div class="success">✅ Product updated successfully!</div>';
+  } else {
+    $('msg').innerHTML = '<div class="error">❌ Update failed.</div>';
+  }
+});
+</script>
+</body>
+</html>
