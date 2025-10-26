@@ -1,83 +1,186 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Admin — Orders</title>
-  <style>
-    :root{--accent:#25D366;--bg:#0b141a;--panel:#071016}
-    body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:#fff}
-    header{background:var(--accent);color:#002b14;padding:14px;text-align:center;font-weight:700}
-    .wrap{max-width:1100px;margin:18px auto;padding:16px}
-    .card{background:var(--panel);padding:14px;border-radius:12px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.03)}
-    input,button{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#071016;color:#fff}
-    table{width:100%;border-collapse:collapse;margin-top:12px}
-    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
-    .btn{background:var(--accent);border:none;padding:8px;border-radius:6px;color:#002b14;cursor:pointer}
-    .small{color:#97a5ad}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orders — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #25D366;
+  --bg: #f9fafb;
+  --card: #fff;
+}
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  margin: 0;
+}
+header {
+  background: var(--green);
+  color: #fff;
+  padding: 16px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 18px;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+}
+.wrap {
+  max-width: 1000px;
+  margin: 24px auto;
+  padding: 0 16px;
+}
+.card {
+  background: var(--card);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  padding: 16px;
+}
+h2 {
+  margin-top: 0;
+  color: #111;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+}
+th, td {
+  text-align: left;
+  padding: 10px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 14px;
+}
+th {
+  background: #f3f4f6;
+}
+tr:hover {
+  background: #f9f9f9;
+}
+.status {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.status.pending {
+  background: #fff3cd;
+  color: #856404;
+}
+.status.delivered {
+  background: #d4edda;
+  color: #155724;
+}
+.status.failed {
+  background: #f8d7da;
+  color: #721c24;
+}
+button {
+  background: var(--green);
+  color: #fff;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 600;
+}
+button:hover { opacity: 0.9; }
+#refresh {
+  background: #f3f4f6;
+  color: #111;
+  border: 1px solid #ddd;
+}
+#msg {
+  text-align: center;
+  margin-top: 10px;
+  color: #555;
+}
+</style>
 </head>
 <body>
-  <header>📋 Admin — Orders</header>
-  <div class="wrap">
-    <div class="card">
-      <div style="display:flex;gap:8px">
-        <input id="adminPass" placeholder="Admin password">
-        <button id="loadBtn" class="btn">Load Orders</button>
-        <button id="exportBtn" class="btn secondary">Export CSV</button>
-      </div>
-      <div id="ordersWrap" style="margin-top:12px">No data</div>
+<header>📦 Orders Dashboard</header>
+
+<div class="wrap">
+  <div class="card">
+    <h2>All Orders</h2>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <input id="adminPass" type="password" placeholder="Admin password" style="padding:8px;border-radius:6px;border:1px solid #ccc;width:200px;">
+      <button id="loadBtn">Load Orders</button>
+      <button id="refresh">Refresh</button>
     </div>
+
+    <table id="ordersTable">
+      <thead>
+        <tr>
+          <th>Order ID</th>
+          <th>Customer</th>
+          <th>Product</th>
+          <th>Quantity</th>
+          <th>Total</th>
+          <th>Country</th>
+          <th>Status</th>
+          <th>Placed</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="ordersBody">
+        <tr><td colspan="9" id="msg">No orders loaded yet</td></tr>
+      </tbody>
+    </table>
   </div>
+</div>
 
 <script>
-const baseURL = ''; // same origin / Render if hosted there
 const $ = id => document.getElementById(id);
 
-function toCSV(rows){
-  if (!rows.length) return '';
-  const keys = Object.keys(rows[0]);
-  const esc = v => '"'+String(v||'').replace(/"/g,'""')+'"';
-  return keys.join(',') + '\n' + rows.map(r => keys.map(k => esc(r[k])).join(',')).join('\n');
+// Load orders
+async function loadOrders(){
+  const pass = $('adminPass').value.trim();
+  if(!pass) return alert('Enter admin password');
+  $('msg').innerText = 'Loading orders...';
+  const res = await fetch('/api/orders?password=' + encodeURIComponent(pass));
+  const data = await res.json();
+  const body = $('ordersBody');
+  body.innerHTML = '';
+  if(!data.length){
+    body.innerHTML = '<tr><td colspan="9" id="msg">No orders found</td></tr>';
+    return;
+  }
+
+  data.forEach(o=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${o.id}</td>
+      <td>${o.name}<br><small>${o.email || ''}</small></td>
+      <td>${o.product}</td>
+      <td>${o.quantity}</td>
+      <td>${o.total}</td>
+      <td>${o.country || '—'}</td>
+      <td><span class="status ${o.status.toLowerCase()}">${o.status}</span></td>
+      <td>${new Date(o.date).toLocaleString()}</td>
+      <td><button onclick="markDelivered('${o.id}')">Mark Delivered</button></td>
+    `;
+    body.appendChild(tr);
+  });
 }
 
-$('loadBtn').addEventListener('click', async ()=>{
+// Mark as delivered
+async function markDelivered(id){
   const pass = $('adminPass').value.trim();
-  if (!pass) return alert('Enter admin password');
-  $('ordersWrap').textContent = 'Loading...';
-  try {
-    const res = await fetch(baseURL + '/api/admin/orders?password=' + encodeURIComponent(pass));
-    const j = await res.json();
-    if (!j || !j.success) { $('ordersWrap').textContent = 'Failed to load (auth)'; return; }
-    const rows = j.orders || [];
-    if (!rows.length) { $('ordersWrap').textContent = 'No orders yet'; return; }
-    let html = '<table><thead><tr><th>OrderID</th><th>Product</th><th>Name</th><th>Phone</th><th>Qty</th><th>When</th></tr></thead><tbody>';
-    rows.forEach(r => {
-      html += `<tr>
-        <td>${r.orderId||''}</td>
-        <td>${r.productTitle||r.product||''}</td>
-        <td>${r.name||''}</td>
-        <td>${r.phone||''}</td>
-        <td>${r.quantity||1}</td>
-        <td>${new Date(r.createdAt||'').toLocaleString()||''}</td>
-      </tr>`;
-    });
-    html += '</tbody></table>';
-    $('ordersWrap').innerHTML = html;
+  const res = await fetch('/api/order-status', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ id, status:'Delivered', password:pass })
+  });
+  const data = await res.json();
+  if(data.success) loadOrders();
+}
 
-    // attach rows for export
-    window._ordersExport = rows;
-  } catch (e) { console.error(e); $('ordersWrap').textContent = 'Error loading'; }
-});
-
-$('exportBtn').addEventListener('click', ()=>{
-  const rows = window._ordersExport || [];
-  if (!rows.length) return alert('No data to export');
-  const csv = toCSV(rows);
-  const blob = new Blob([csv], {type:'text/csv'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = 'orders.csv';
-  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-});
+$('loadBtn').addEventListener('click', loadOrders);
+$('refresh').addEventListener('click', loadOrders);
 </script>
+
 </body>
-</html>
+        </html>
