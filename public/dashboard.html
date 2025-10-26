@@ -1,186 +1,71 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Products Dashboard</title>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Admin Dashboard</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f8f9fa;
-      margin: 0;
-      padding: 0;
-    }
-    header {
-      background: #25d366;
-      color: #fff;
-      text-align: center;
-      padding: 1rem;
-      font-size: 1.4em;
-      font-weight: bold;
-    }
-    main {
-      padding: 1.5rem;
-      max-width: 900px;
-      margin: auto;
-    }
-    .product {
-      background: #fff;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    }
-    .product.sold {
-      opacity: 0.6;
-    }
-    .product h3 {
-      margin: 0 0 0.4rem;
-      color: #222;
-    }
-    .product p {
-      margin: 0.2rem 0;
-    }
-    .btn {
-      padding: 8px 14px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      margin-right: 8px;
-      font-weight: bold;
-    }
-    .btn-delete {
-      background: #dc3545;
-      color: white;
-    }
-    .btn-sold {
-      background: #ffc107;
-      color: black;
-    }
-    .btn-buy {
-      background: #25d366;
-      color: white;
-    }
-    iframe {
-      width: 100%;
-      height: 520px;
-      border: none;
-      margin-top: 20px;
-      display: none;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    }
+    :root{--accent:#25D366;--bg:#071016}
+    body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:#fff}
+    header{background:var(--accent);color:#002b14;padding:14px;text-align:center;font-weight:700}
+    .wrap{max-width:1100px;margin:14px auto;padding:12px}
+    .card{background:#071216;padding:12px;border-radius:10px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.03)}
+    button{background:var(--accent);border:none;padding:8px;border-radius:8px;color:#002b14;cursor:pointer}
+    .small{color:#97a5ad}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
   </style>
 </head>
 <body>
-  <header>🛍️ Product Management Dashboard</header>
-  <main>
-    <div id="productList">Loading products...</div>
+  <header>📊 ChatSender — Admin Dashboard</header>
+  <div class="wrap">
+    <div class="card">
+      <h3>Quick Actions</h3>
+      <div style="display:flex;gap:8px">
+        <a href="/admin-product.html"><button>Add Product / Job</button></a>
+        <a href="/buyers.html"><button style="background:#fff;color:#111">Buyers</button></a>
+        <a href="/admin-products.html"><button style="background:transparent;border:1px solid rgba(255,255,255,0.06);color:#fff">Products Admin</button></a>
+      </div>
+    </div>
 
-    <!-- Paystack or custom payment iframe -->
-    <iframe id="paymentFrame"></iframe>
-  </main>
+    <div class="card">
+      <h3>Recent Products</h3>
+      <div id="recentProducts" class="small">Loading...</div>
+    </div>
 
-  <script>
-    const password = "Forgetme"; // Must match ADMIN_PASSWORD in .env
-    const productList = document.getElementById("productList");
-    const paymentFrame = document.getElementById("paymentFrame");
+    <div class="card">
+      <h3>Recent Orders</h3>
+      <div id="recentOrders" class="small">Loading...</div>
+    </div>
 
-    // 🧾 Fetch all products
-    async function loadProducts() {
-      const res = await fetch("/api/products");
-      const data = await res.json();
-      renderProducts(data);
-    }
+    <div class="card">
+      <h3>Messages / Logs</h3>
+      <div id="logs" class="small">Webhook & outbound logs stored in server/Firestore.</div>
+    </div>
+  </div>
 
-    // 🖼️ Display products
-    function renderProducts(products) {
-      if (!products.length) {
-        productList.innerHTML = "<p>No products found.</p>";
-        return;
-      }
-
-      productList.innerHTML = products
-        .map(
-          (p) => `
-        <div class="product ${p.sold ? "sold" : ""}" id="prod-${p.id}">
-          <h3>${p.name}</h3>
-          <p>${p.desc || ""}</p>
-          <p><strong>Price:</strong> ${p.price}</p>
-          <p><strong>Status:</strong> ${p.sold ? "✅ Sold" : "🟢 Available"}</p>
-          <div>
-            <button class="btn btn-delete" onclick="deleteProduct('${p.id}')">🗑 Delete</button>
-            ${
-              !p.sold
-                ? `<button class="btn btn-sold" onclick="markSold('${p.id}')">Mark as Sold</button>
-                   <button class="btn btn-buy" onclick="choosePayment('${p.id}', '${p.name}', '${p.price}', '${p.onlinePayment}', '${p.alternatePayment}')">Buy</button>`
-                : ""
-            }
-          </div>
-        </div>
-      `
-        )
-        .join("");
-    }
-
-    // 🗑 Delete product
-    async function deleteProduct(id) {
-      if (!confirm("Are you sure you want to delete this product?")) return;
-      await fetch(`/api/delete/${id}`, { method: "DELETE" });
-      loadProducts();
-    }
-
-    // 🏷️ Mark as sold
-    async function markSold(id) {
-      await fetch(`/api/mark-sold/${id}`, { method: "POST" });
-      loadProducts();
-    }
-
-    // 💳 Payment options
-    function choosePayment(id, name, price, paystackLink, customLink) {
-      const choice = confirm(
-        `Do you want to pay via Secure Online Gateway? (Press OK for Online, Cancel for Alternate)`
-      );
-
-      if (choice) {
-        // Paystack (iframe load)
-        startPaystackPayment(name, price, id);
+<script>
+  async function loadRecent(){
+    try {
+      const prodRes = await fetch('/api/admin/products?password=' + encodeURIComponent(prompt('Admin password to load products:')));
+      const prodJ = await prodRes.json();
+      if (prodJ && prodJ.success) {
+        const list = prodJ.products.slice(0,6).map(p=>`<div><strong>${p.title||p.name}</strong> — ${p.category} — ${p.createdAt}</div>`).join('');
+        document.getElementById('recentProducts').innerHTML = list || 'No products';
       } else {
-        // Custom link (iframe)
-        if (!customLink) {
-          alert("No alternate payment link available for this product.");
-          return;
-        }
-        paymentFrame.src = customLink;
-        paymentFrame.style.display = "block";
-        paymentFrame.scrollIntoView({ behavior: "smooth" });
-      }
-    }
-
-    // ⚡ Start Paystack payment inline
-    async function startPaystackPayment(name, price, id) {
-      const email = prompt("Enter your email to continue:");
-      if (!email) return alert("Email required to proceed");
-
-      const res = await fetch("/api/paystack/initiate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, amount: price, productId: id }),
-      });
-
-      const data = await res.json();
-      if (!data.authorization_url) {
-        alert("Failed to initialize payment");
-        return;
+        document.getElementById('recentProducts').innerText = 'Unauthorized or failed';
       }
 
-      paymentFrame.src = data.authorization_url;
-      paymentFrame.style.display = "block";
-      paymentFrame.scrollIntoView({ behavior: "smooth" });
-    }
-
-    // Load everything
-    loadProducts();
-  </script>
+      const ordRes = await fetch('/api/admin/orders?password=' + encodeURIComponent(prompt('Admin password to load orders:')));
+      const ordJ = await ordRes.json();
+      if (ordJ && ordJ.success) {
+        const rows = ordJ.orders.slice(0,8).map(o=>`<div><strong>${o.productTitle}</strong> — ${o.name} — ${o.phone} — ${new Date(o.createdAt).toLocaleString()}</div>`).join('');
+        document.getElementById('recentOrders').innerHTML = rows || 'No orders';
+      } else {
+        document.getElementById('recentOrders').innerText = 'Unauthorized or failed';
+      }
+    } catch (e) { console.error(e); }
+  }
+  loadRecent();
+</script>
 </body>
-  </html>
+</html>
