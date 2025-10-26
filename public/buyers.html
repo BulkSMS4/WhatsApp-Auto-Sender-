@@ -1,172 +1,46 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Buyers Records Dashboard</title>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Buyers — Admin</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f8f8f8;
-      margin: 0; padding: 0;
-    }
-    header {
-      background: #25D366;
-      color: white;
-      padding: 1rem;
-      text-align: center;
-      font-size: 1.5em;
-      font-weight: bold;
-    }
-    section {
-      max-width: 1000px;
-      margin: 20px auto;
-      background: white;
-      padding: 1rem;
-      border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-    }
-    th, td {
-      padding: 10px;
-      border: 1px solid #ccc;
-      text-align: left;
-    }
-    th {
-      background: #25D366;
-      color: white;
-    }
-    tr:nth-child(even) { background: #f9f9f9; }
-    input[type="text"] {
-      width: 100%;
-      padding: 8px;
-      margin-top: 10px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-    }
-    button {
-      margin-top: 10px;
-      padding: 8px 12px;
-      border: none;
-      border-radius: 5px;
-      background: #25D366;
-      color: white;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    button:hover { background: #1ebe5c; }
-    .delete-btn {
-      background: #ff4d4d;
-    }
-    .delete-btn:hover {
-      background: #e63939;
-    }
+    :root{--accent:#25D366;--bg:#071016}
+    body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:#fff}
+    header{background:var(--accent);color:#002b14;padding:14px;text-align:center;font-weight:700}
+    .wrap{max-width:1100px;margin:14px auto;padding:12px}
+    .card{background:#071216;padding:12px;border-radius:10px;margin-bottom:12px}
+    input,button{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#071216;color:#fff}
+    .small{color:#97a5ad}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
+    .btn{background:var(--accent);border:none;padding:8px;border-radius:6px;color:#002b14;cursor:pointer}
   </style>
 </head>
 <body>
-
-<header>🧾 Buyers Details Dashboard</header>
-
-<section>
-  <input type="text" id="searchInput" placeholder="🔍 Search by name or product...">
-  <button onclick="exportCSV()">⬇️ Export CSV</button>
-
-  <table id="buyersTable">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Phone</th>
-        <th>Email</th>
-        <th>Address</th>
-        <th>Product</th>
-        <th>Payment</th>
-        <th>Date</th>
-        <th>Action</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</section>
+  <header>👥 Buyers & Orders</header>
+  <div class="wrap">
+    <div class="card">
+      <div style="display:flex;gap:8px">
+        <input id="pass" placeholder="Admin password">
+        <button id="loadBtn" class="btn">Load Buyers & Orders</button>
+      </div>
+      <div id="content" style="margin-top:12px"></div>
+    </div>
+  </div>
 
 <script>
-  let buyers = [];
-
-  async function loadBuyers() {
-    const password = prompt("Enter admin password:");
-    if (!password) return alert("Access denied.");
-
-    const res = await fetch(`/api/get-buyers?password=${password}`);
-    const data = await res.json();
-    if (!data.success) return alert(data.error || "Unauthorized");
-
-    buyers = data.buyers;
-    renderTable(buyers);
-  }
-
-  function renderTable(list) {
-    const tbody = document.querySelector("#buyersTable tbody");
-    tbody.innerHTML = "";
-    list.forEach(b => {
-      tbody.innerHTML += `
-        <tr>
-          <td>${b.name}</td>
-          <td>${b.phone}</td>
-          <td>${b.email}</td>
-          <td>${b.address}</td>
-          <td>${b.product}</td>
-          <td>${b.paymentMethod || "N/A"}</td>
-          <td>${b.date}</td>
-          <td><button class="delete-btn" onclick="deleteBuyer('${b.id}')">🗑️</button></td>
-        </tr>
-      `;
-    });
-  }
-
-  document.getElementById("searchInput").addEventListener("input", e => {
-    const val = e.target.value.toLowerCase();
-    const filtered = buyers.filter(b =>
-      b.name.toLowerCase().includes(val) || b.product.toLowerCase().includes(val)
-    );
-    renderTable(filtered);
+  document.getElementById('loadBtn').addEventListener('click', async ()=>{
+    const pass = document.getElementById('pass').value.trim();
+    if (!pass) return alert('Enter admin password');
+    document.getElementById('content').textContent = 'Loading...';
+    try {
+      const pr = await fetch('/api/admin/orders?password='+encodeURIComponent(pass));
+      const j = await pr.json();
+      if (!j || !j.success) { document.getElementById('content').textContent = 'Failed to load orders'; return; }
+      const rows = j.orders.map(o=>`<tr><td>${o.orderId}</td><td>${o.productTitle}</td><td>${o.name}</td><td>${o.phone}</td><td>${o.quantity}</td><td>${new Date(o.createdAt).toLocaleString()}</td></tr>`).join('');
+      document.getElementById('content').innerHTML = `<table><thead><tr><th>OrderID</th><th>Product</th><th>Name</th><th>Phone</th><th>Qty</th><th>When</th></tr></thead><tbody>${rows}</tbody></table>`;
+    } catch (e) { console.error(e); document.getElementById('content').textContent='Error'; }
   });
-
-  async function deleteBuyer(id) {
-    const confirmDel = confirm("Delete this buyer record?");
-    if (!confirmDel) return;
-    const password = prompt("Enter admin password to confirm delete:");
-    if (!password) return;
-    const res = await fetch(`/api/delete-buyer/${id}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password })
-    });
-    const data = await res.json();
-    if (data.success) {
-      alert("Deleted!");
-      loadBuyers();
-    } else alert(data.error || "Failed to delete");
-  }
-
-  function exportCSV() {
-    const rows = [
-      ["Name","Phone","Email","Address","Product","Payment","Date"],
-      ...buyers.map(b => [
-        b.name, b.phone, b.email, b.address, b.product, b.paymentMethod || "N/A", b.date
-      ])
-    ];
-    const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
-    const a = document.createElement("a");
-    a.href = csvContent;
-    a.download = "buyers.csv";
-    a.click();
-  }
-
-  loadBuyers();
 </script>
-
 </body>
-  </html>
+</html>
