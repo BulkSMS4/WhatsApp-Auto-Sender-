@@ -1,27 +1,28 @@
 /**
  * server.js
- * Full backend for ChatSender admin + store (CommonJS)
  *
- * Usage:
- *   npm install express multer dotenv node-fetch nodemailer
- *   node server.js
+ * Backend for ChatSender admin + auto-notify (WhatsApp Cloud API, Telegram, Email)
+ * - Uses Firestore for storage (collections: products, visits, orders, subscribers, outbound_messages)
+ * - Stores uploaded images to /uploads
+ * - Hides payment link in Firestore as `_paymentLink`
  *
- * Environment variables (example names - keep same as your .env):
- *   PORT, ADMIN_PASSWORD, WHATSAPP_TOKEN, PHONE_NUMBER_ID, ADMIN_PHONE, ADMIN_NAME,
- *   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
- *   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, ADMIN_EMAIL,
- *   WHATSAPP_GROUP_IDS, AUTO_MESSAGES (true/false), WEBHOOK_VERIFY_TOKEN,
- *   BULK_THROTTLE_MS (optional, default 350)
+ * Requirements:
+ *  - A Firebase Admin service account (use GOOGLE_APPLICATION_CREDENTIALS or FIREBASE_ADMIN_JSON)
+ *  - .env containing WHATSAPP_TOKEN, PHONE_NUMBER_ID, SMTP_*, TELEGRAM_*, ADMIN_PASSWORD, ADMIN_PHONE, ADMIN_EMAIL, etc.
+ *
+ * Install:
+ *   npm install express multer dotenv firebase-admin node-fetch nodemailer
  */
 
-require("dotenv").config();
-const express = require("express");
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
-const crypto = require("crypto");
-const fetch = require("node-fetch");
-const nodemailer = require("nodemailer");
+require('dotenv').config();
+const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
+const fetch = require('node-fetch');
+const nodemailer = require('nodemailer');
+const admin = require('firebase-admin');
 
 const app = express();
 app.use(express.json());
@@ -29,67 +30,82 @@ app.use(express.urlencoded({ extended: true }));
 
 // ---------- ENV ----------
 const PORT = process.env.PORT || 10000;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Forgetme";
-const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || "EAAbnZCZA0lZBioBPZC1Bl4LKGbmeamRE9s5NZC9BUzxfX1f4agMEZBIYvMX04Wv8C5K0ZBvkg78azsQInnIZAWAFq7SQzfSgtRIBheqXobkC73i3aYWfQH6z70Mq8uhoBjOvlzgdj1dYJf0nvqatB1UNcO8zQmNxhDor0Ptlp153BSiiZBc4j4ZBJCpbPYddnuEdT1PZBpHFDgZD";
-const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || "768962646310363";
-const ADMIN_PHONE = process.env.ADMIN_PHONE || "+233593231752";
-const ADMIN_NAME = process.env.ADMIN_NAME || "FATI IBRAHIM";
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8003409315:AAEVIPsOYnF8mBaT8l-kmzWucHUTu9Yo8AY";
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "8085649636";
-const SMTP_HOST = process.env.SMTP_HOST || "";
-const SMTP_PORT = process.env.SMTP_PORT || "465";
-const SMTP_USER = process.env.SMTP_USER || "johnofosu20@gmail.com";
-const SMTP_PASS = process.env.SMTP_PASS || "xerl ulwp moat hnrp";
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "johnofosu20@gmail.com";
-const WHATSAPP_GROUP_IDS = (process.env.WHATSAPP_GROUP_IDS || "").split(",").map(s=>s.trim()).filter(Boolean);
-const AUTO_MESSAGES = (process.env.AUTO_MESSAGES || "false").toLowerCase() === "true";
-const WEBHOOK_VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || "PAST_IT_HERE";
-const BULK_THROTTLE_MS = Number(process.env.BULK_THROTTLE_MS || 350);
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'adminpass';
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || '';
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || '';
+const ADMIN_PHONE = process.env.ADMIN_PHONE || '';
+const ADMIN_NAME = process.env.ADMIN_NAME || 'Admin';
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '';
+const SMTP_HOST = process.env.SMTP_HOST || '';
+const SMTP_PORT = process.env.SMTP_PORT || '';
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
+const WHATSAPP_GROUP_IDS = (process.env.WHATSAPP_GROUP_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
+const AUTO_MESSAGES = (process.env.AUTO_MESSAGES || 'false').toLowerCase() === 'true';
+const WEBHOOK_VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || '';
 
-// ---------- data paths ----------
-const DATA_DIR = path.join(__dirname, "data");
+// ---------- Firestore init ----------
+try {
+  if (process.env.FIREBASE_ADMIN_JSON) {
+    const cred = JSON.parse(process.env.FIREBASE_ADMIN_JSON);
+    admin.initializeApp({ credential: admin.credential.cert(cred) });
+  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS && fs.existsSync(process.env.GOOGLE_APPLICATION_CREDENTIALS)) {
+    admin.initializeApp();
+  } else {
+    console.error('Firebase admin credentials not found. Set GOOGLE_APPLICATION_CREDENTIALS or FIREBASE_ADMIN_JSON.');
+    process.exit(1);
+  }
+} catch (e) {
+  console.error('Firebase init error', e);
+  process.exit(1);
+}
+const db = admin.firestore();
+
+// ---------- local backup folder ----------
+const DATA_DIR = path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+const MESSAGES_LOCAL = path.join(DATA_DIR, 'messages.json');
+if (!fs.existsSync(MESSAGES_LOCAL)) fs.writeFileSync(MESSAGES_LOCAL, '[]', 'utf8');
 
-const PRODUCTS_FILE = path.join(DATA_DIR, "products.json");
-const BUYERS_FILE = path.join(DATA_DIR, "buyers.json");
-const CLICKS_FILE = path.join(DATA_DIR, "clicks.json");
-const MESSAGES_FILE = path.join(DATA_DIR, "messages.json");
-const SUBS_FILE = path.join(DATA_DIR, "subscribers.json");
-const ROTATION_FILE = path.join(DATA_DIR, "rotation.json");
-
-function ensureJSON(filePath, initial = []) {
-  if (!fs.existsSync(filePath)) fs.writeFileSync(filePath, JSON.stringify(initial, null, 2));
+// ---------- helper functions ----------
+function genId() {
+  return Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
 }
-ensureJSON(PRODUCTS_FILE, []);
-ensureJSON(BUYERS_FILE, []);
-ensureJSON(CLICKS_FILE, []);
-ensureJSON(MESSAGES_FILE, []);
-ensureJSON(SUBS_FILE, []);
-ensureJSON(ROTATION_FILE, { index: -1 });
-
-function readJSON(filePath) {
-  try { return JSON.parse(fs.readFileSync(filePath, "utf8")); }
-  catch (e) { console.error("readJSON error", filePath, e); return []; }
+function nowISO() {
+  return new Date().toISOString();
 }
-function writeJSON(filePath, data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+function cleanPhone(n) {
+  return ('' + (n || '')).replace(/\D/g, '');
+}
+async function appendLocalMessage(msg) {
+  try {
+    const arr = JSON.parse(fs.readFileSync(MESSAGES_LOCAL, 'utf8') || '[]');
+    arr.unshift(msg);
+    if (arr.length > 3000) arr.length = 3000;
+    fs.writeFileSync(MESSAGES_LOCAL, JSON.stringify(arr, null, 2), 'utf8');
+  } catch (e) {
+    console.warn('appendLocalMessage failed', e.message);
+  }
 }
 
-// ---------- storage for uploads ----------
-const UPLOADS_DIR = path.join(__dirname, "uploads");
+// ---------- uploads ----------
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOADS_DIR),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
-    const name = Date.now() + "-" + crypto.randomBytes(4).toString("hex") + ext;
+    const name = Date.now() + '-' + crypto.randomBytes(4).toString('hex') + ext;
     cb(null, name);
   }
 });
-const upload = multer({ storage });
+const upload = multer({ storage, limits: { files: 20 } });
+app.use('/uploads', express.static(UPLOADS_DIR));
+app.use(express.static(path.join(__dirname, 'public')));
 
-// ---------- email transporter (optional) ----------
+// ---------- mailer ----------
 let mailer = null;
 if (SMTP_HOST && SMTP_USER && SMTP_PASS && SMTP_PORT) {
   try {
@@ -97,457 +113,422 @@ if (SMTP_HOST && SMTP_USER && SMTP_PASS && SMTP_PORT) {
       host: SMTP_HOST,
       port: Number(SMTP_PORT),
       secure: Number(SMTP_PORT) === 465,
-      auth: { user: SMTP_USER, pass: SMTP_PASS },
+      auth: { user: SMTP_USER, pass: SMTP_PASS }
     });
-    console.log("✅ Mailer configured");
+    console.log('✅ Mailer configured');
   } catch (e) {
-    console.warn("Mailer setup failed", e.message);
+    console.warn('Mailer setup failed', e.message);
   }
 } else {
-  console.log("⚠️ Mailer not configured (SMTP_* missing)");
+  console.log('⚠️ Mailer not configured (SMTP env missing)');
 }
 
-// ---------- helpers ----------
-function nowISO() { return new Date().toISOString(); }
-function genId() { return Date.now().toString() + crypto.randomBytes(3).toString("hex"); }
-function genMask() { return crypto.randomBytes(4).toString("hex"); }
-function cleanPhone(n) { return ("" + n).replace(/\D/g, ""); }
-
-/**
- * Replace placeholders in a template string.
- * Supported placeholders: {product}, {price}, {link}, {category}, plus any custom keys in replacements object.
- * If a placeholder isn't found, it's left as-is.
- */
-function applyTemplate(template, replacements = {}) {
-  if (!template) return template;
-  return template.replace(/\{([^\}]+)\}/g, (m, key) => {
-    if (replacements.hasOwnProperty(key)) return replacements[key];
-    return m; // leave placeholder if no replacement provided
-  });
-}
-
-// ---------- WhatsApp Cloud API helpers ----------
+// ---------- WhatsApp send helper (Cloud API) ----------
 async function sendWhatsAppText(to, text) {
-  if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) throw new Error("WhatsApp credentials missing (WHATSAPP_TOKEN / PHONE_NUMBER_ID)");
+  if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) throw new Error('WhatsApp credentials missing');
+  // some numbers might already be clean; clean them
+  const toClean = cleanPhone(to);
   const payload = {
     messaging_product: "whatsapp",
-    to: cleanPhone(to),
+    to: toClean,
     type: "text",
     text: { body: text }
   };
-  const res = await fetch(`https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+  const url = `https://graph.facebook.com/v16.0/${PHONE_NUMBER_ID}/messages`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
   const data = await res.json();
-  // log message entry
-  const messages = readJSON(MESSAGES_FILE);
-  messages.unshift({ id: data?.messages?.[0]?.id || `out_${Date.now()}`, to: cleanPhone(to), text, raw: data, createdAt: nowISO() });
-  if (messages.length > 5000) messages.length = 5000;
-  writeJSON(MESSAGES_FILE, messages);
+  // store log in firestore
+  try {
+    await db.collection('outbound_messages').add({ to: toClean, text, raw: data, createdAt: nowISO() });
+  } catch (e) { /* ignore */ }
+  // local backup
+  await appendLocalMessage({ to: toClean, text, raw: data, createdAt: nowISO() });
   return data;
 }
 
-async function fetchWhatsAppDisplayName(phone) {
-  if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) return null;
-  try {
-    const body = { blocking: "wait", contacts: [cleanPhone(phone)] };
-    const r = await fetch(`https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/contacts`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    });
-    const data = await r.json();
-    if (data && data.contacts && data.contacts[0] && data.contacts[0].profile && data.contacts[0].profile.name) {
-      return data.contacts[0].profile.name;
-    }
-  } catch (e) { /* ignore */ }
-  return null;
-}
-
-// send Telegram (optional)
+// ---------- Telegram send helper ----------
 async function sendTelegram(text) {
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return null;
   try {
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text, parse_mode: "Markdown" })
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    const res = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text, parse_mode: 'HTML', disable_web_page_preview: true })
     });
-  } catch (e) { console.warn("telegram send fail", e.message); }
+    return await res.json();
+  } catch (e) {
+    console.warn('sendTelegram failed', e.message);
+    return null;
+  }
 }
 
-// send email (optional)
+// ---------- Email helper ----------
 async function sendEmail(to, subject, html) {
-  if (!mailer) return;
+  if (!mailer) { console.warn('mailer not available'); return; }
   try {
     await mailer.sendMail({ from: `"${ADMIN_NAME}" <${SMTP_USER}>`, to, subject, html });
-  } catch (e) { console.warn("sendEmail failed", e.message); }
+  } catch (e) {
+    console.warn('sendEmail failed', e.message);
+  }
 }
 
-// ---------- static assets ----------
-app.use("/uploads", express.static(UPLOADS_DIR));
-app.use(express.static(path.join(__dirname, "public"))); // serves admin.html, stores.html, menu.html etc.
+// ---------- Firestore collection refs ----------
+const productsCol = () => db.collection('products');
+const visitsCol = () => db.collection('visits');
+const ordersCol = () => db.collection('orders');
+const subsCol = () => db.collection('subscribers');
 
-// ---------------- API Endpoints ----------------
-
-// GET products
-app.get("/api/products", (req, res) => {
-  const products = readJSON(PRODUCTS_FILE);
-  res.json(products);
-});
-
-// Upload product
-app.post("/api/upload-product", upload.single("image"), (req, res) => {
+// ---------- API: add product (admin) ----------
+/**
+ * POST /api/addProduct
+ * multipart/form-data:
+ *  - password (admin)
+ *  - category, title, desc, price, siteLink, paymentLink
+ *  - images[] (up to 20)
+ *  - autoSend (optional: 'true' to trigger sending to subscribers and bulk)
+ *  - bulkNumbers (optional string - comma/newline separated)
+ */
+app.post('/api/addProduct', upload.array('images', 20), async (req, res) => {
   try {
     const fields = req.body || {};
-    const password = fields.password || fields.pass || fields.adminPass;
-    if (password !== ADMIN_PASSWORD) return res.status(403).json({ error: "Unauthorized" });
+    const pass = fields.password || fields.pass;
+    if (pass !== ADMIN_PASSWORD) return res.status(403).json({ error: 'Unauthorized' });
 
-    const name = fields.name || fields.productName || fields.title || "";
-    const desc = fields.desc || fields.productDesc || fields.description || "";
-    const price = fields.price || fields.productPrice || fields.productPriceUSD || "0";
-    const category = fields.category || fields.productCategory || "Other";
-    const alternatePayment = fields.website || fields.alternatePayment || fields.productWebsite || "";
-    const onlinePayment = fields.paymentLink || fields.onlinePayment || fields.productPayment || "";
+    const category = fields.category || 'Other';
+    const title = fields.title || fields.name || '';
+    const desc = fields.desc || fields.description || '';
+    const price = fields.price || '0';
+    const siteLink = fields.siteLink || fields.website || '';
+    const paymentLink = fields.paymentLink || fields._paymentLink || '';
+    const autoSend = (fields.autoSend || 'false').toLowerCase() === 'true';
+    const bulkNumbersRaw = fields.bulkNumbers || '';
 
-    const img = req.file;
-    let imageUrl = "";
-    if (img) imageUrl = `/uploads/${img.filename}`;
+    // images
+    const files = req.files || [];
+    const imgUrls = files.map(f => `${req.protocol}://${req.get('host')}/uploads/${f.filename}`);
 
-    const products = readJSON(PRODUCTS_FILE);
+    // product doc
     const id = genId();
-    const masked = `/p/${genMask()}`;
-
-    const product = {
+    const doc = {
       id,
-      name,
+      category,
+      title,
       desc,
       price: String(price),
-      category,
-      image: imageUrl,
-      alternatePayment,
-      onlinePayment,
-      maskedLink: masked,
-      clicks: 0,
-      sold: false,
-      createdAt: nowISO()
+      images: imgUrls,
+      siteLink,
+      _paymentLink: paymentLink,
+      paymentLinkHidden: !!paymentLink,
+      createdAt: nowISO(),
+      visits: 0,
+      sold: false
     };
 
-    products.unshift(product);
-    writeJSON(PRODUCTS_FILE, products);
+    await productsCol().doc(id).set(doc);
 
-    res.json({ success: true, product, maskedLink: masked });
-  } catch (err) {
-    console.error("upload-product error", err);
-    res.status(500).json({ error: "Upload failed" });
-  }
-});
+    // Create public URL
+    const publicUrl = `${req.protocol}://${req.get('host')}/view/${encodeURIComponent(category)}/${id}`;
 
-// Masked product link
-app.get("/p/:code", (req, res) => {
-  try {
-    const code = req.params.code;
-    const products = readJSON(PRODUCTS_FILE);
-    const product = products.find(p => p.maskedLink === `/p/${code}`);
-    if (!product) return res.status(404).send("Product not found");
+    // If autoSend is true, send notifications immediately
+    let sendResults = [];
+    if (autoSend) {
+      // build message body (simple)
+      const msg = `📣 New ${category}: ${title}\nPrice: ${price}\n${desc}\nView: ${publicUrl}`;
 
-    // log click
-    const clicks = readJSON(CLICKS_FILE);
-    const entry = {
-      id: genId(),
-      productId: product.id,
-      time: nowISO(),
-      ip: req.headers["x-forwarded-for"] || req.connection.remoteAddress || req.ip,
-      ua: req.get("User-Agent") || "",
-      referrer: req.get("Referer") || ""
-    };
-    clicks.unshift(entry);
-    writeJSON(CLICKS_FILE, clicks);
+      // send to subscribers (firestore)
+      try {
+        const subsSnap = await subsCol().get();
+        const subs = [];
+        subsSnap.forEach(d => subs.push(d.data().phone || d.data().number || d.id));
+        for (const s of subs) {
+          try {
+            const r = await sendWhatsAppText(s, msg);
+            sendResults.push({ to: s, ok: true, raw: r });
+            // throttle small delay
+            await new Promise(r => setTimeout(r, 200));
+          } catch (e) {
+            sendResults.push({ to: s, ok: false, error: e.message });
+          }
+        }
+      } catch (e) {
+        console.warn('subs send failed', e.message);
+      }
 
-    // increment clicks
-    product.clicks = (product.clicks || 0) + 1;
-    writeJSON(PRODUCTS_FILE, products);
+      // send to bulk numbers provided in the request
+      const bulkNums = (bulkNumbersRaw || '').split(/[\s,;]+/).map(x => x.trim()).filter(Boolean);
+      for (const n of bulkNums) {
+        try {
+          const r = await sendWhatsAppText(n, msg);
+          sendResults.push({ to: n, ok: true, raw: r });
+          await new Promise(r => setTimeout(r, 200));
+        } catch (e) {
+          sendResults.push({ to: n, ok: false, error: e.message });
+        }
+      }
 
-    // redirect to store page with view param so frontend can open the modal
-    res.redirect(`/stores.html?view=${product.id}`);
-  } catch (e) {
-    console.error(e);
-    res.redirect("/stores.html");
-  }
-});
+      // send to admin phone
+      if (ADMIN_PHONE) {
+        try {
+          await sendWhatsAppText(ADMIN_PHONE, `✅ Product posted: ${title}\n${publicUrl}`);
+        } catch (e) { console.warn('admin whatsapp notify failed', e.message); }
+      }
 
-// mark sold
-app.post("/api/mark-sold", (req, res) => {
-  const { id, password } = req.body;
-  if (password !== ADMIN_PASSWORD) return res.status(403).json({ error: "Unauthorized" });
-  const products = readJSON(PRODUCTS_FILE);
-  const idx = products.findIndex(p => p.id === id);
-  if (idx === -1) return res.status(404).json({ error: "Not found" });
-  products[idx].sold = true;
-  writeJSON(PRODUCTS_FILE, products);
-  res.json({ success: true, product: products[idx] });
-});
+      // Telegram notify
+      try {
+        await sendTelegram(`<b>New ${category}</b>\n${title}\nPrice: ${price}\n${desc}\n${publicUrl}`);
+      } catch (e) { console.warn('telegram notify failed', e.message); }
 
-// delete product
-app.delete("/api/delete-product/:id", (req, res) => {
-  const { password } = req.body;
-  if (password !== ADMIN_PASSWORD) return res.status(403).json({ error: "Unauthorized" });
-  let products = readJSON(PRODUCTS_FILE);
-  const id = req.params.id;
-  const prod = products.find(p => p.id === id);
-  products = products.filter(p => p.id !== id);
-  writeJSON(PRODUCTS_FILE, products);
-  try {
-    if (prod && prod.image) {
-      const f = path.join(__dirname, prod.image);
-      if (fs.existsSync(f)) fs.unlinkSync(f);
+      // Email notify
+      try {
+        if (ADMIN_EMAIL) {
+          await sendEmail(ADMIN_EMAIL, `New ${category}: ${title}`, `<p><b>${title}</b></p><p>${desc}</p><p>Price: ${price}</p><p><a href="${publicUrl}">Open product</a></p>`);
+        }
+      } catch (e) { console.warn('email notify failed', e.message); }
+
+      // Note: WhatsApp Cloud API cannot reliably send to group chat IDs the same way as individual phone numbers.
+      // WHATSAPP_GROUP_IDS is kept for compatibility but may not work—official Cloud API primarily supports individual contacts.
+      if (Array.isArray(WHATSAPP_GROUP_IDS) && WHATSAPP_GROUP_IDS.length) {
+        for (const gid of WHATSAPP_GROUP_IDS) {
+          try {
+            // Attempt — likely to fail for actual groups; included for compatibility
+            await sendWhatsAppText(gid, msg);
+          } catch (e) {
+            console.warn('group send failed (expected for groups)', gid, e.message);
+          }
+        }
+      }
     }
-  } catch (e) { console.warn("delete image failed", e.message); }
-  res.json({ success: true });
+
+    // return product meta
+    res.json({ success: true, id, publicUrl, sendResults });
+
+  } catch (err) {
+    console.error('addProduct error', err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
-// get buyers (admin)
-app.get("/api/get-buyers", (req, res) => {
-  const pass = req.query.password;
-  if (pass !== ADMIN_PASSWORD) return res.status(403).json({ error: "Unauthorized" });
-  const buyers = readJSON(BUYERS_FILE);
-  res.json({ success: true, buyers });
-});
-
-// save buyer (from store)
-app.post("/api/save-buyer", async (req, res) => {
+// ---------- public product fetch ----------
+app.get('/api/products', async (req, res) => {
   try {
-    const { name, phone, email, address, productId, price, paymentLink } = req.body;
-    if (!name || !phone || !productId) return res.status(400).json({ error: "Missing fields" });
+    const category = req.query.category;
+    let q = productsCol().orderBy('createdAt', 'desc');
+    if (category && category !== 'All') q = q.where('category', '==', category);
+    const snap = await q.get();
+    const out = [];
+    snap.forEach(d => {
+      const data = d.data();
+      // remove private fields
+      const safe = Object.assign({}, data);
+      delete safe._paymentLink;
+      delete safe.paymentLinkHidden;
+      out.push(safe);
+    });
+    res.json(out);
+  } catch (e) {
+    console.error('products fetch', e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
-    const products = readJSON(PRODUCTS_FILE);
-    const product = products.find(p => p.id === productId);
+app.get('/api/product/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const doc = await productsCol().doc(id).get();
+    if (!doc.exists) return res.status(404).json({ error: 'Not found' });
+    const data = doc.data();
+    const safe = Object.assign({}, data);
+    delete safe._paymentLink;
+    delete safe.paymentLinkHidden;
+    res.json(safe);
+  } catch (e) {
+    console.error('product get', e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
-    const buyer = {
-      id: genId(),
-      name,
-      phone,
-      email: email || "",
-      address: address || "",
-      product: product ? product.name : productId,
+// ---------- public visit route ----------
+app.post('/api/visit/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const docRef = productsCol().doc(id);
+    await db.runTransaction(async t => {
+      const doc = await t.get(docRef);
+      if (!doc.exists) throw new Error('Not found');
+      const now = doc.data().visits || 0;
+      t.update(docRef, { visits: now + 1 });
+    });
+    await visitsCol().add({ productId: id, time: nowISO(), ua: req.get('User-Agent') || '', ref: req.get('Referer') || '' });
+    res.json({ success: true });
+  } catch (e) {
+    console.error('visit error', e.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ---------- Order endpoint ----------
+app.post('/api/order', async (req, res) => {
+  try {
+    const { name, phone, address, productId, quantity } = req.body;
+    if (!name || !phone || !productId) return res.status(400).json({ error: 'Missing fields' });
+    const pDoc = await productsCol().doc(productId).get();
+    if (!pDoc.exists) return res.status(404).json({ error: 'Product not found' });
+    const product = pDoc.data();
+
+    const orderId = genId();
+    const order = {
+      orderId,
       productId,
-      price: price || (product ? product.price : ""),
-      paymentLink: paymentLink || (product ? product.onlinePayment : ""),
-      createdAt: nowISO()
+      productTitle: product.title || product.name || '',
+      price: product.price || '',
+      quantity: Number(quantity) || 1,
+      name,
+      phone: cleanPhone(phone),
+      address: address || '',
+      createdAt: nowISO(),
+      status: 'pending'
     };
 
-    const buyers = readJSON(BUYERS_FILE);
-    buyers.unshift(buyer);
-    writeJSON(BUYERS_FILE, buyers);
+    await ordersCol().doc(orderId).set(order);
 
-    // notify buyer by whatsapp (confirmation) - best-effort
-    try {
-      const buyerMsg = `✅ Hi ${buyer.name}, we received your order for *${buyer.product}*. Total: ${buyer.price}. We'll be in touch.`;
-      await sendWhatsAppText(buyer.phone, buyerMsg);
-    } catch (e) { console.warn("buyer confirm fail", e.message); }
+    // Notify admin via WhatsApp, Telegram, Email
+    const adminMsg = `📦 New Order\nProduct: ${order.productTitle}\nBuyer: ${order.name}\nPhone: ${order.phone}\nQty: ${order.quantity}\nAddress: ${order.address}\nOrderID: ${order.orderId}`;
+    try { if (ADMIN_PHONE) await sendWhatsAppText(ADMIN_PHONE, adminMsg); } catch (e) { console.warn('admin whatsapp failed', e.message); }
+    try { await sendTelegram(adminMsg); } catch (e) { /* ignore */ }
+    try { if (ADMIN_EMAIL) await sendEmail(ADMIN_EMAIL, `New Order: ${order.productTitle}`, `<pre>${adminMsg}</pre>`); } catch (e) { /* ignore */ }
 
-    // notify admin via whatsapp, telegram, email
-    const adminMsg = `📦 New Order\nProduct: ${buyer.product}\nBuyer: ${buyer.name}\nPhone: ${buyer.phone}\nAddress: ${buyer.address}\nAmount: ${buyer.price}\nTime: ${buyer.createdAt}`;
-    try { if (ADMIN_PHONE) await sendWhatsAppText(ADMIN_PHONE, adminMsg); } catch (e){console.warn(e.message);}
-    try { await sendTelegram(adminMsg); } catch(e){}
-    try { if (ADMIN_EMAIL) await sendEmail(ADMIN_EMAIL, `New Order: ${buyer.product}`, `<pre>${adminMsg}</pre>`); } catch(e){}
-
-    res.json({ success: true, buyer });
-  } catch (err) {
-    console.error("save-buyer error", err);
-    res.status(500).json({ error: "Failed to save buyer" });
-  }
-});
-
-// get clicks (admin)
-app.get("/api/clicks", (req, res) => {
-  const pass = req.query.password;
-  if (pass !== ADMIN_PASSWORD) return res.status(403).json({ error: "Unauthorized" });
-  const clicks = readJSON(CLICKS_FILE);
-  res.json({ success: true, clicks });
-});
-
-// messages (admin)
-app.get("/api/messages", (req, res) => {
-  const pass = req.query.password;
-  if (pass !== ADMIN_PASSWORD) return res.status(403).json({ error: "Unauthorized" });
-  const msgs = readJSON(MESSAGES_FILE);
-  res.json({ success: true, messages: msgs });
-});
-
-// subscribe a number
-app.post("/api/subscribe", (req, res) => {
-  const { phone } = req.body;
-  if (!phone) return res.status(400).json({ error: "Missing phone" });
-  const subs = readJSON(SUBS_FILE);
-  const p = cleanPhone(phone);
-  if (!subs.includes(p)) subs.push(p);
-  writeJSON(SUBS_FILE, subs);
-  res.json({ success: true });
-});
-
-// send single whatsapp (admin)
-app.post("/api/send-whatsapp", async (req, res) => {
-  const { phone, text, password } = req.body;
-  if (password && password !== ADMIN_PASSWORD) return res.status(403).json({ error: "Unauthorized" });
-  try {
-    const name = await fetchWhatsAppDisplayName(phone);
-    const body = name ? `Hi ${name},\n\n${text}` : text;
-    const r = await sendWhatsAppText(phone, body);
-    res.json({ success: true, result: r });
+    res.json({ success: true, orderId });
   } catch (e) {
-    console.error("send-whatsapp", e);
-    res.status(500).json({ error: e.message });
+    console.error('order error', e);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
+// ---------- Send bulk (admin) ----------
 /**
  * POST /api/send-bulk
- * body: {
- *   numbers: ["233501234567", ...] OR "233...,233..."
- *   message: "Hello {product} ..."  // can include placeholders
- *   productId: optional product id (if provided placeholders {product},{price},{link} will be replaced)
- *   replacements: optional object { name: "John", discount: "10%" } - allows custom placeholders
- *   password: admin password required
- * }
+ * { numbers: [...], message: 'text', password: '...' }
  */
-app.post("/api/send-bulk", async (req, res) => {
+app.post('/api/send-bulk', async (req, res) => {
   try {
-    let { numbers, message, productId, replacements, password } = req.body;
-    if (password !== ADMIN_PASSWORD) return res.status(403).json({ error: "Unauthorized" });
-
-    if (!message) return res.status(400).json({ error: "Missing message" });
-
-    // normalize numbers
-    if (!numbers) return res.status(400).json({ error: "Missing numbers" });
-    if (typeof numbers === "string") numbers = numbers.split(/[\s,;]+/).filter(Boolean);
-    if (!Array.isArray(numbers) || numbers.length === 0) return res.status(400).json({ error: "No numbers provided" });
-
-    // load product replacements if productId provided
-    let product = null;
-    if (productId) {
-      const products = readJSON(PRODUCTS_FILE);
-      product = products.find(p => p.id === productId || p.maskedLink === productId);
-    }
+    const { numbers, message, password } = req.body;
+    if (password !== ADMIN_PASSWORD) return res.status(403).json({ error: 'Unauthorized' });
+    if (!Array.isArray(numbers) || numbers.length === 0) return res.status(400).json({ error: 'No numbers' });
 
     const results = [];
-    for (const rawNum of numbers) {
-      const num = cleanPhone(rawNum);
-      if (!num) {
-        results.push({ to: rawNum, ok: false, error: "Invalid number" });
-        continue;
-      }
+    for (const n of numbers) {
       try {
-        // build replacements object
-        const baseRepl = Object.assign({}, replacements || {});
-        if (product) {
-          baseRepl.product = product.name || "";
-          baseRepl.price = product.price || "";
-          // full absolute link for maskedLink
-          const baseUrl = (process.env.BASE_URL || "").replace(/\/$/, "") || (`http://localhost:${PORT}`);
-          baseRepl.link = product.maskedLink ? (product.maskedLink.startsWith("http") ? product.maskedLink : `${baseUrl}${product.maskedLink}`) : (product.onlinePayment || "");
-          baseRepl.category = product.category || "";
-        }
-
-        const msgText = applyTemplate(message, baseRepl);
-
-        // try to fetch display name and personalize greeting
-        const name = await fetchWhatsAppDisplayName(num);
-        const finalBody = name ? `Hi ${name},\n\n${msgText}` : msgText;
-
-        const r = await sendWhatsAppText(num, finalBody);
-        results.push({ to: num, ok: true, raw: r });
-        // throttle between sends to avoid rate limits
-        await new Promise(rp => setTimeout(rp, BULK_THROTTLE_MS));
-      } catch (err) {
-        results.push({ to: num, ok: false, error: err.message });
+        const r = await sendWhatsAppText(n, message);
+        results.push({ to: n, ok: true, raw: r });
+        await new Promise(r => setTimeout(r, 300));
+      } catch (e) {
+        results.push({ to: n, ok: false, error: e.message });
       }
     }
+
+    // also send to Telegram & email summary
+    try {
+      await sendTelegram(`<b>Bulk send</b>\nSent to ${numbers.length} numbers.\nPreview: ${message.slice(0,200)}`);
+    } catch (e) {}
+    try {
+      if (ADMIN_EMAIL) await sendEmail(ADMIN_EMAIL, `Bulk send to ${numbers.length} numbers`, `<pre>${message}</pre>`);
+    } catch (e) {}
 
     res.json({ success: true, results });
-  } catch (err) {
-    console.error("send-bulk error", err);
-    res.status(500).json({ error: "Failed to send bulk" });
+  } catch (e) {
+    console.error('send-bulk error', e);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
-// rotation auto-sender: every 10 minutes send next product to subscribers
-async function rotateAndSend() {
+// ---------- Admin: get payment link (secure) ----------
+app.get('/api/admin/getPaymentLink/:id', async (req, res) => {
   try {
-    const subs = readJSON(SUBS_FILE);
-    if (!subs.length) return;
-    const products = readJSON(PRODUCTS_FILE).filter(p => !p.sold);
-    if (!products.length) return;
+    const pass = req.query.password;
+    if (pass !== ADMIN_PASSWORD) return res.status(403).json({ error: 'Unauthorized' });
+    const id = req.params.id;
+    const doc = await productsCol().doc(id).get();
+    if (!doc.exists) return res.status(404).json({ error: 'Not found' });
+    const data = doc.data();
+    return res.json({ success: true, paymentLink: data._paymentLink || '' });
+  } catch (e) {
+    console.error('getPaymentLink', e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
-    const rotation = readJSON(ROTATION_FILE);
-    let idx = (rotation.index || -1) + 1;
-    if (idx >= products.length) idx = 0;
-    const product = products[idx];
+// ---------- Admin: list products & orders ----------
+app.get('/api/admin/products', async (req, res) => {
+  try {
+    const pass = req.query.password;
+    if (pass !== ADMIN_PASSWORD) return res.status(403).json({ error: 'Unauthorized' });
+    const snap = await productsCol().orderBy('createdAt', 'desc').get();
+    const items = [];
+    snap.forEach(d => items.push(d.data()));
+    res.json({ success: true, products: items });
+  } catch (e) {
+    console.error('admin products', e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
-    const msg = `📦 New Product: ${product.name}\n${product.desc}\nPrice: ${product.price}\nCheck: ${product.maskedLink}`;
-    const results = [];
-    for (const s of subs) {
-      try {
-        const name = await fetchWhatsAppDisplayName(s);
-        const body = name ? `Hi ${name},\n\n${msg}` : msg;
-        await sendWhatsAppText(s, body);
-        results.push({ to: s, ok: true });
-        await new Promise(r => setTimeout(r, BULK_THROTTLE_MS));
-      } catch (e) {
-        results.push({ to: s, ok: false, error: e.message });
-      }
+app.get('/api/admin/orders', async (req, res) => {
+  try {
+    const pass = req.query.password;
+    if (pass !== ADMIN_PASSWORD) return res.status(403).json({ error: 'Unauthorized' });
+    const snap = await ordersCol().orderBy('createdAt', 'desc').limit(500).get();
+    const items = [];
+    snap.forEach(d => items.push(d.data()));
+    res.json({ success: true, orders: items });
+  } catch (e) {
+    console.error('admin orders', e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ---------- Subscribe endpoint (public) ----------
+app.post('/api/subscribe', async (req, res) => {
+  try {
+    const phoneRaw = req.body.phone || req.body.number || '';
+    if (!phoneRaw) return res.status(400).json({ error: 'Missing phone' });
+    const phone = cleanPhone(phoneRaw);
+    // store in Firestore if not exists
+    const snap = await subsCol().where('phone', '==', phone).limit(1).get();
+    if (snap.empty) {
+      await subsCol().add({ phone, createdAt: nowISO() });
     }
-    rotation.index = idx;
-    writeJSON(ROTATION_FILE, rotation);
-    const messages = readJSON(MESSAGES_FILE);
-    messages.unshift({ id: `rot_${Date.now()}`, type: "rotation", productId: product.id, results, createdAt: nowISO() });
-    writeJSON(MESSAGES_FILE, messages);
-    console.log("Auto-send rotated product:", product.name, "sent to", results.length, "subs");
+    res.json({ success: true });
   } catch (e) {
-    console.error("rotateAndSend error", e.message);
-  }
-}
-if (AUTO_MESSAGES) {
-  setTimeout(() => rotateAndSend(), 5000);
-  setInterval(rotateAndSend, 10 * 60 * 1000);
-}
-
-// exchange rates proxy
-app.get("/api/rates", async (req, res) => {
-  try {
-    const base = req.query.base || "USD";
-    const r = await fetch(`https://api.exchangerate.host/latest?base=${encodeURIComponent(base)}`);
-    const data = await r.json();
-    res.json(data);
-  } catch (e) {
-    res.status(500).json({ error: "Failed to fetch rates" });
+    console.error('subscribe', e);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
-// webhook endpoint for WhatsApp
-app.get("/webhook", (req, res) => {
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
+// ---------- Webhook verification & storage ----------
+app.get('/webhook', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
   if (mode && token) {
-    if (mode === "subscribe" && token === WEBHOOK_VERIFY_TOKEN) {
-      console.log("WEBHOOK_VERIFIED");
+    if (mode === 'subscribe' && token === WEBHOOK_VERIFY_TOKEN) {
+      console.log('WEBHOOK_VERIFIED');
       return res.status(200).send(challenge);
     }
     return res.sendStatus(403);
   }
   res.sendStatus(200);
 });
-app.post("/webhook", (req, res) => {
+
+app.post('/webhook', async (req, res) => {
   try {
     const body = req.body;
-    const msgs = readJSON(MESSAGES_FILE);
-    msgs.unshift({ id: `webhook_${Date.now()}`, body, receivedAt: nowISO() });
-    if (msgs.length > 5000) msgs.length = 5000;
-    writeJSON(MESSAGES_FILE, msgs);
-
+    // store raw webhook in outbound_messages for inspection
+    await db.collection('webhook_events').add({ body, receivedAt: nowISO() });
+    // basic parsing for statuses/inbound messages
     if (body.entry && Array.isArray(body.entry)) {
       for (const entry of body.entry) {
         if (!entry.changes) continue;
@@ -555,34 +536,31 @@ app.post("/webhook", (req, res) => {
           const value = ch.value || {};
           if (value.statuses) {
             const statuses = value.statuses;
-            const mlog = readJSON(MESSAGES_FILE);
-            statuses.forEach(s => mlog.unshift({ type: "status", id: s.id || s.message_id, status: s.status, timestamp: s.timestamp, raw: s }));
-            writeJSON(MESSAGES_FILE, mlog);
+            const mlog = db.collection('outbound_messages');
+            for (const s of statuses) {
+              await mlog.add({ type: 'status', id: s.id || s.message_id, status: s.status, raw: s, timestamp: s.timestamp || nowISO() });
+            }
           }
           if (value.messages) {
             const incoming = value.messages;
-            const mlog = readJSON(MESSAGES_FILE);
-            incoming.forEach(m => mlog.unshift({ type: "inbound", id: m.id, from: m.from, text: m.text?.body || "", raw: m }));
-            writeJSON(MESSAGES_FILE, mlog);
+            const mlog = db.collection('inbound_messages');
+            for (const m of incoming) {
+              await mlog.add({ type: 'inbound', id: m.id, from: m.from, text: m.text?.body || '', raw: m, createdAt: nowISO() });
+            }
           }
         }
       }
     }
     res.sendStatus(200);
   } catch (e) {
-    console.error("webhook post error", e);
+    console.error('webhook post error', e);
     res.sendStatus(500);
   }
 });
 
-// simple health
-app.get("/api/health", (req, res) => res.json({ ok: true, time: nowISO() }));
+// ---------- Health & root ----------
+app.get('/api/health', (req, res) => res.json({ ok: true, time: nowISO() }));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-// serve admin by default if exists
-app.get("/", (req, res) => {
-  const adminFile = path.join(__dirname, "public", "admin.html");
-  if (fs.existsSync(adminFile)) return res.sendFile(adminFile);
-  res.send("ChatSender backend running");
-});
-
+// ---------- Start server ----------
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
