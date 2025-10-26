@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Admin — Orders</title>
+  <style>
+    :root{--accent:#25D366;--bg:#0b141a;--panel:#071016}
+    body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:#fff}
+    header{background:var(--accent);color:#002b14;padding:14px;text-align:center;font-weight:700}
+    .wrap{max-width:1100px;margin:18px auto;padding:16px}
+    .card{background:var(--panel);padding:14px;border-radius:12px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.03)}
+    input,button{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#071016;color:#fff}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
+    .btn{background:var(--accent);border:none;padding:8px;border-radius:6px;color:#002b14;cursor:pointer}
+    .small{color:#97a5ad}
+  </style>
+</head>
+<body>
+  <header>📋 Admin — Orders</header>
+  <div class="wrap">
+    <div class="card">
+      <div style="display:flex;gap:8px">
+        <input id="adminPass" placeholder="Admin password">
+        <button id="loadBtn" class="btn">Load Orders</button>
+        <button id="exportBtn" class="btn secondary">Export CSV</button>
+      </div>
+      <div id="ordersWrap" style="margin-top:12px">No data</div>
+    </div>
+  </div>
+
+<script>
+const baseURL = ''; // same origin / Render if hosted there
+const $ = id => document.getElementById(id);
+
+function toCSV(rows){
+  if (!rows.length) return '';
+  const keys = Object.keys(rows[0]);
+  const esc = v => '"'+String(v||'').replace(/"/g,'""')+'"';
+  return keys.join(',') + '\n' + rows.map(r => keys.map(k => esc(r[k])).join(',')).join('\n');
+}
+
+$('loadBtn').addEventListener('click', async ()=>{
+  const pass = $('adminPass').value.trim();
+  if (!pass) return alert('Enter admin password');
+  $('ordersWrap').textContent = 'Loading...';
+  try {
+    const res = await fetch(baseURL + '/api/admin/orders?password=' + encodeURIComponent(pass));
+    const j = await res.json();
+    if (!j || !j.success) { $('ordersWrap').textContent = 'Failed to load (auth)'; return; }
+    const rows = j.orders || [];
+    if (!rows.length) { $('ordersWrap').textContent = 'No orders yet'; return; }
+    let html = '<table><thead><tr><th>OrderID</th><th>Product</th><th>Name</th><th>Phone</th><th>Qty</th><th>When</th></tr></thead><tbody>';
+    rows.forEach(r => {
+      html += `<tr>
+        <td>${r.orderId||''}</td>
+        <td>${r.productTitle||r.product||''}</td>
+        <td>${r.name||''}</td>
+        <td>${r.phone||''}</td>
+        <td>${r.quantity||1}</td>
+        <td>${new Date(r.createdAt||'').toLocaleString()||''}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    $('ordersWrap').innerHTML = html;
+
+    // attach rows for export
+    window._ordersExport = rows;
+  } catch (e) { console.error(e); $('ordersWrap').textContent = 'Error loading'; }
+});
+
+$('exportBtn').addEventListener('click', ()=>{
+  const rows = window._ordersExport || [];
+  if (!rows.length) return alert('No data to export');
+  const csv = toCSV(rows);
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'orders.csv';
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>
