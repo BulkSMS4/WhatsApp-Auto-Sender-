@@ -1,0 +1,307 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Admin — Products</title>
+  <style>
+    :root{--accent:#25D366;--bg:#0b141a;--panel:#071016;--muted:#97a5ad}
+    body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:#fff}
+    header{background:var(--accent);color:#002b14;padding:14px;text-align:center;font-weight:700}
+    .wrap{max-width:1100px;margin:18px auto;padding:16px}
+    .card{background:var(--panel);padding:14px;border-radius:12px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.03)}
+    label{display:block;margin-top:8px;font-size:14px}
+    input,select,textarea,button{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#071016;color:#fff}
+    textarea{min-height:80px}
+    .row{display:flex;gap:12px}
+    .col{flex:1}
+    .small{color:var(--muted);font-size:13px}
+    .products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:12px}
+    .prod{background:#071216;padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.02)}
+    .prod img{width:100%;height:140px;object-fit:cover;border-radius:6px}
+    .btn{background:var(--accent);color:#002b14;border:none;padding:10px;border-radius:8px;cursor:pointer}
+    .btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#fff}
+    .filelist{font-size:13px;color:var(--muted);margin-top:6px}
+    .modal{position:fixed;left:0;top:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:999}
+    .modal .panel{background:#fff;color:#111;border-radius:10px;padding:16px;max-width:900px;width:94%;max-height:90vh;overflow:auto}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03)}
+    .hint{font-size:13px;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <header>📦 Admin — Products & Jobs</header>
+  <div class="wrap">
+
+    <div class="card">
+      <h3>Add Product / Job</h3>
+      <div class="hint">Select category → fields auto-fill examples. Upload up to 20 images. Payment link is stored hidden (admin-only).</div>
+
+      <label>Category</label>
+      <select id="category">
+        <option>Electronics</option><option>Fashion</option><option>Home</option>
+        <option>Accessories</option><option>Foods</option><option>Rings</option>
+        <option>Toys</option><option>Cars</option><option>Trucks</option><option>Jobs</option>
+      </select>
+
+      <label>Title</label>
+      <input id="title" placeholder="e.g. Samsung 55&quot; QLED">
+
+      <label>Description</label>
+      <textarea id="desc" placeholder="Short description"></textarea>
+
+      <div id="jobFields" style="display:none">
+        <label>Job Location (for Jobs)</label>
+        <input id="jobLocation" placeholder="e.g. Accra, Ghana">
+      </div>
+
+      <label id="priceLabel">Price (USD)</label>
+      <input id="price" type="number" step="0.01" placeholder="e.g. 49.99">
+
+      <label>Product Site Link (visible to customers)</label>
+      <input id="siteLink" placeholder="https://example.com/item">
+
+      <label>Custom Payment Link (hidden – admin-only)</label>
+      <input id="paymentLink" placeholder="https://payment.example.com/pay/abc123">
+
+      <label>Images (up to 20) — multi-select</label>
+      <input id="images" type="file" accept="image/*" multiple>
+      <div id="fileList" class="filelist">No files chosen</div>
+
+      <label>Bulk Numbers (optional — comma/newline separated)</label>
+      <textarea id="bulkNumbers" placeholder="233501234567,233599999999"></textarea>
+
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <input id="adminPass" placeholder="Admin password (required)">
+        <button id="addBtn" class="btn">Save & (optionally) Send</button>
+      </div>
+      <div id="addResult" class="small" style="margin-top:8px"></div>
+      <div class="hint" style="margin-top:8px">Tip: Check "autoSend" in the UI prompt to immediately push notifications to your numbers.</div>
+    </div>
+
+    <div class="card">
+      <h3>Products / Jobs</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="margin:0">Filter</label>
+        <select id="filterCategory" style="width:220px"><option>All</option></select>
+        <button id="refreshBtn" class="btn secondary" style="width:120px">Refresh</button>
+      </div>
+      <div id="productsGrid" class="products-grid"></div>
+    </div>
+
+    <div class="card">
+      <h3>Quick Bulk Send</h3>
+      <div class="hint">Send a message now to a list of numbers (admin password required).</div>
+      <label>Numbers</label>
+      <textarea id="sendNumbers" rows="3" placeholder="233501234567,233599999999"></textarea>
+      <label>Message (use {product}, {price}, {link})</label>
+      <textarea id="sendMessage" rows="3">Check out {product} for {price} — {link}</textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="sendPass" placeholder="Admin password">
+        <button id="sendBulkBtn" class="btn">Send Now</button>
+      </div>
+      <pre id="sendResult" class="small" style="white-space:pre-wrap;max-height:160px;overflow:auto"></pre>
+    </div>
+
+  </div>
+
+  <!-- Details / Payment modal -->
+  <div id="detailModal" class="modal">
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3 id="modalTitle">Product Details</h3>
+        <button id="closeDetail" class="btn secondary">Close</button>
+      </div>
+      <div id="modalBody"></div>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <input id="adminPassForPay" placeholder="Admin password to open payment link">
+        <button id="openPaymentBtn" class="btn">Open Hidden Payment (Admin)</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/*
+  admin-products.html
+  - connects to your Render backend at the origin that serves this page (same origin).
+  - endpoints used: POST /api/addProduct, GET /api/products, GET /api/product/:id, GET /api/admin/getPaymentLink/:id?password=..., POST /api/send-bulk
+*/
+
+const baseURL = ''; // empty => same origin. If you prefer forcing Render domain use: const baseURL = 'https://whatsapp-auto-sender-orst.onrender.com';
+
+const examples = {
+  Electronics:{title:'Samsung 55\\" QLED',desc:'55\" 4K QLED Smart TV',price:'899.00',site:'https://example.com/tv',payment:'https://pay.example.com/tv'},
+  Fashion:{title:"Men's Leather Jacket",desc:'Genuine leather, sizes S-XXL',price:'129.99',site:'https://example.com/jacket',payment:'https://pay.example.com/jacket'},
+  Home:{title:'Deluxe Blender',desc:'1500W blender, 2L jar',price:'59.99',site:'https://example.com/blender',payment:'https://pay.example.com/blender'},
+  Accessories:{title:'Wireless Earbuds',desc:'Noise cancelling earbud',price:'39.99',site:'https://example.com/earbuds',payment:'https://pay.example.com/earbuds'},
+  Foods:{title:'Jollof Rice (1kg)',desc:'Fresh, home-cooked',price:'6.50',site:'https://example.com/jollof',payment:'https://pay.example.com/jollof'},
+  Rings:{title:'14K Gold Ring',desc:'14K gold engagement ring',price:'249.00',site:'https://example.com/ring',payment:'https://pay.example.com/ring'},
+  Toys:{title:'RC Car 4WD',desc:'Battery included',price:'29.99',site:'https://example.com/rc',payment:'https://pay.example.com/rc'},
+  Cars:{title:'Toyota Corolla 2018',desc:'50,000km, single owner',price:'8500.00',site:'https://example.com/car',payment:'https://pay.example.com/car'},
+  Trucks:{title:'Isuzu NKR 2015',desc:'3-ton, diesel',price:'12000.00',site:'https://example.com/truck',payment:'https://pay.example.com/truck'},
+  Jobs:{title:'Warehouse Assistant (Full-Time)',desc:'Packaging, loading, inventory',price:'450.00',site:'https://example.com/job',payment:'https://pay.example.com/apply'}
+};
+
+const $ = id => document.getElementById(id);
+const category = $('category'), title = $('title'), desc = $('desc'), price = $('price'), siteLink = $('siteLink'), paymentLink = $('paymentLink'), images = $('images'), fileList = $('fileList');
+
+category.addEventListener('change', () => {
+  const v = category.value;
+  if (examples[v]) {
+    title.value = examples[v].title;
+    desc.value = examples[v].desc;
+    price.value = examples[v].price;
+    siteLink.value = examples[v].site;
+    paymentLink.value = examples[v].payment;
+  }
+  $('jobFields').style.display = (v==='Jobs') ? 'block' : 'none';
+});
+
+images.addEventListener('change', () => {
+  const n = Array.from(images.files).slice(0,20).map(f=>f.name);
+  fileList.textContent = n.length ? n.join(', ') : 'No files chosen';
+});
+
+// Add product
+$('addBtn').addEventListener('click', async () => {
+  const pass = $('adminPass').value.trim();
+  if (!pass) return alert('Admin password required');
+  const fd = new FormData();
+  fd.append('password', pass);
+  fd.append('category', category.value || 'Other');
+  fd.append('title', title.value || '');
+  fd.append('desc', desc.value || '');
+  fd.append('price', price.value || '');
+  fd.append('siteLink', siteLink.value || '');
+  fd.append('paymentLink', paymentLink.value || '');
+  fd.append('bulkNumbers', $('bulkNumbers').value || '');
+  // optional: ask user whether to autoSend immediately
+  const doAutoSend = confirm('Auto-send to subscribers & bulk numbers now? (OK = yes)');
+  fd.append('autoSend', doAutoSend ? 'true' : 'false');
+  for (let i=0;i<images.files.length && i<20;i++) fd.append('images', images.files[i]);
+  $('addResult').textContent = 'Uploading...';
+  try {
+    const res = await fetch(baseURL + '/api/addProduct', { method: 'POST', body: fd });
+    const j = await res.json();
+    if (j && j.success) {
+      $('addResult').textContent = 'Saved ✓ Public URL: ' + j.publicUrl;
+      loadProducts();
+    } else {
+      $('addResult').textContent = 'Save failed: ' + (j && j.error ? j.error : 'unknown');
+    }
+  } catch (e) {
+    console.error(e);
+    $('addResult').textContent = 'Save failed (network)';
+  }
+});
+
+// Load products (admin view uses public /api/products then shows grid)
+async function loadProducts(){
+  try {
+    const res = await fetch(baseURL + '/api/products');
+    const list = await res.json();
+    renderProducts(list || []);
+    populateFilter(list || []);
+  } catch (e) { console.error(e); }
+}
+
+function populateFilter(list){
+  const sel = $('filterCategory'); sel.innerHTML = '<option>All</option>';
+  const set = new Set(list.map(p => p.category || 'Other'));
+  set.forEach(s => { const o=document.createElement('option'); o.value=s; o.textContent=s; sel.appendChild(o); });
+}
+
+function renderProducts(list){
+  const grid = $('productsGrid'); grid.innerHTML = '';
+  const filter = $('filterCategory').value || 'All';
+  list.forEach(p => {
+    if (filter !== 'All' && p.category !== filter) return;
+    const box = document.createElement('div'); box.className='prod';
+    const img = (p.images && p.images.length) ? p.images[0] : '/placeholder.png';
+    box.innerHTML = `<img src="${img}" alt=""><div style="margin-top:8px"><strong>${p.title||p.name}</strong></div>
+      <div class="small">${(p.desc||'').slice(0,120)}</div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn" onclick="viewProduct('${p.id}')">Details</button>
+        <button class="btn secondary" onclick="openPublic('${p.id}')">Open View</button>
+      </div>
+      <div class="small" style="margin-top:8px">Price: ${p.price||'N/A'} | Visits: ${p.visits||0}</div>`;
+    grid.appendChild(box);
+  });
+}
+
+window.openPublic = id => {
+  // uses the /view/:category/:id route (server should serve product-view.html there)
+  window.open(`/view/unknown/${id}`, '_blank');
+};
+
+window.viewProduct = async (id) => {
+  try {
+    const res = await fetch(baseURL + '/api/product/' + encodeURIComponent(id));
+    const p = await res.json();
+    $('modalTitle').textContent = p.title || 'Product';
+    const mb = $('modalBody'); mb.innerHTML = '';
+    (p.images||[]).forEach(src => {
+      const img = document.createElement('img'); img.src = src; img.style.maxWidth='100%'; img.style.marginBottom='8px';
+      mb.appendChild(img);
+    });
+    const info = document.createElement('div'); info.innerHTML = `<p><strong>Category:</strong> ${p.category}</p>
+      <p><strong>Price:</strong> ${p.price}</p><p>${p.desc}</p>
+      <p><a href="${p.siteLink}" target="_blank">Product site</a></p>`;
+    mb.appendChild(info);
+    $('detailModal').style.display = 'flex';
+    // store currentViewing id
+    window._currentViewing = p.id;
+    // clear admin pass input for payment
+    $('adminPassForPay').value = '';
+  } catch (e) { alert('Failed to load product'); console.error(e); }
+};
+
+$('closeDetail').addEventListener('click', ()=> $('detailModal').style.display='none');
+
+// open hidden payment link (admin-only)
+$('openPaymentBtn').addEventListener('click', async () => {
+  const id = window._currentViewing;
+  const pass = $('adminPassForPay').value.trim();
+  if (!id || !pass) return alert('Admin password required');
+  try {
+    const res = await fetch(`${baseURL}/api/admin/getPaymentLink/${encodeURIComponent(id)}?password=${encodeURIComponent(pass)}`);
+    const j = await res.json();
+    if (j && j.success && j.paymentLink) {
+      // show in new admin tab inside modal frame (simple approach)
+      const win = window.open('', '_blank');
+      win.location = j.paymentLink;
+    } else {
+      alert('Payment link unavailable or incorrect password');
+    }
+  } catch (e) { console.error(e); alert('Failed to fetch payment link'); }
+});
+
+// Bulk send UI
+$('sendBulkBtn').addEventListener('click', async () => {
+  const nums = $('sendNumbers').value.split(/[\s,;]+/).map(s=>s.trim()).filter(Boolean);
+  const msg = $('sendMessage').value.trim(); const pass = $('sendPass').value.trim();
+  if (!nums.length || !msg) return alert('Provide numbers and message');
+  if (!pass) return alert('Admin password required');
+  $('sendResult').textContent = 'Sending...';
+  try {
+    const res = await fetch(baseURL + '/api/send-bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ numbers: nums, message: msg, password: pass }) });
+    const j = await res.json();
+    if (j && j.success) {
+      const ok = j.results.filter(r=>r.ok).length, fail = j.results.length - ok;
+      let out = `Success: ${ok}, Failed: ${fail}\n\n`;
+      j.results.forEach(r => { if (!r.ok) out += `${r.to}: ${r.error || JSON.stringify(r.raw)}\n`; });
+      $('sendResult').textContent = out;
+    } else {
+      $('sendResult').textContent = 'Send failed: ' + (j && j.error ? j.error : 'unknown');
+    }
+  } catch (e) { console.error(e); $('sendResult').textContent = 'Send failed (network)'; }
+});
+
+$('refreshBtn').addEventListener('click', loadProducts);
+$('filterCategory').addEventListener('change', loadProducts);
+
+// initial
+loadProducts();
+</script>
+</body>
+                                        </html>
