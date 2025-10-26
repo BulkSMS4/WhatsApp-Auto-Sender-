@@ -90,8 +90,15 @@
     <label>Website Link</label>
     <input type="url" id="site" placeholder="https://example.com/product">
 
-    <label>Payment Link (Hidden)</label>
-    <input type="url" id="payment" placeholder="https://example.com/pay" />
+    <div id="paymentContainer">
+      <label>Payment Link</label>
+      <input type="url" id="payment" placeholder="https://example.com/pay" />
+    </div>
+
+    <div id="applyContainer" class="hidden">
+      <label>Custom Apply Form Link</label>
+      <input type="url" id="applyForm" placeholder="https://example.com/apply-form" />
+    </div>
 
     <label>Upload up to 20 Images</label>
     <input type="file" id="images" multiple accept="image/*">
@@ -115,7 +122,10 @@
     const priceLabel = document.getElementById('priceLabel');
     const priceInput = document.getElementById('price');
     const siteInput = document.getElementById('site');
+    const paymentContainer = document.getElementById('paymentContainer');
     const paymentInput = document.getElementById('payment');
+    const applyContainer = document.getElementById('applyContainer');
+    const applyFormInput = document.getElementById('applyForm');
     const locationContainer = document.getElementById('locationContainer');
     const convertedPrice = document.getElementById('convertedPrice');
     let detectedCurrency = "USD", exchangeRate = 1;
@@ -189,7 +199,7 @@
         desc: 'Assist in packaging, loading, and inventory.',
         price: '450.00',
         site: 'https://mystore.com/jobs/warehouse-assistant',
-        payment: 'https://pay.example.com/apply/warehouse'
+        applyForm: 'https://mystore.com/apply/warehouse'
       }
     };
 
@@ -200,15 +210,22 @@
         descInput.value = examples[c].desc;
         priceInput.value = examples[c].price;
         siteInput.value = examples[c].site;
-        paymentInput.value = examples[c].payment;
+        if (examples[c].payment) paymentInput.value = examples[c].payment;
+        if (examples[c].applyForm) applyFormInput.value = examples[c].applyForm;
       }
+
       if (c === 'Jobs') {
         priceLabel.textContent = 'Salary (USD)';
         locationContainer.classList.remove('hidden');
+        paymentContainer.classList.add('hidden');
+        applyContainer.classList.remove('hidden');
       } else {
         priceLabel.textContent = 'Price (USD)';
         locationContainer.classList.add('hidden');
+        paymentContainer.classList.remove('hidden');
+        applyContainer.classList.add('hidden');
       }
+
       updateConvertedPrice();
     });
 
@@ -220,18 +237,18 @@
         detectedCurrency = data.currency || "USD";
         document.getElementById('currency').textContent = `Currency: ${detectedCurrency}`;
         getExchangeRate();
-      } catch (err) {
+      } catch {
         document.getElementById('country').textContent = 'Could not detect location';
       }
     }
 
     async function getExchangeRate() {
       try {
-        const response = await fetch(`https://api.exchangerate.host/latest?base=USD`);
-        const data = await response.json();
+        const res = await fetch(`https://api.exchangerate.host/latest?base=USD`);
+        const data = await res.json();
         exchangeRate = data.rates[detectedCurrency] || 1;
         updateConvertedPrice();
-      } catch (err) {
+      } catch {
         convertedPrice.textContent = 'Error fetching rate';
       }
     }
@@ -247,7 +264,6 @@
     }
 
     priceInput.addEventListener('input', updateConvertedPrice);
-
     detectCountryCurrency();
 
     document.getElementById('productForm').addEventListener('submit', (e) => {
