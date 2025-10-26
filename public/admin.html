@@ -175,10 +175,18 @@
     const convertedPrice = document.getElementById('convertedPrice');
     let detectedCurrency = "USD", exchangeRate = 1;
 
+    // Example data per category
     const examples = {
-      Electronics: { title: 'Samsung 55" QLED Smart TV', desc: '55" 4K UHD Smart TV, HDMI x3, USB x2.', price: '899.00' },
-      Fashion: { title: "Men's Leather Jacket", desc: 'Genuine leather, all sizes (S–XXL).', price: '129.99' },
-      Jobs: { title: 'Warehouse Assistant (Full-Time)', desc: 'Assist in packaging, loading, and inventory.', price: '450.00' }
+      "🔬Electronics": { title: 'Samsung 55" QLED Smart TV', desc: '55" 4K UHD Smart TV, HDMI x3, USB x2.', price: '899.00' },
+      "👗Fashion": { title: "Men's Leather Jacket", desc: 'Genuine leather, all sizes (S–XXL).', price: '129.99' },
+      "🏡Home": { title: "Ergonomic Office Chair", desc: 'Comfortable chair with lumbar support.', price: '199.00' },
+      "📸Accessories": { title: "Canon Camera Lens", desc: '50mm f/1.8, perfect for portraits.', price: '149.50' },
+      "🍔Foods": { title: "Gourmet Chocolate Box", desc: 'Assorted chocolates 500g.', price: '25.00' },
+      "💍Rings": { title: "Gold Wedding Ring", desc: '14k solid gold ring.', price: '299.00' },
+      "🧸Toys": { title: "Lego Starship Set", desc: '500 pieces, ages 8+.', price: '89.99' },
+      "🚗Cars": { title: "Toyota Corolla 2021", desc: 'Well maintained, single owner.', price: '15000.00' },
+      "🚚Trucks": { title: "Ford F-150 2020", desc: 'Strong engine, great condition.', price: '28000.00' },
+      "💼Jobs": { title: 'Warehouse Assistant (Full-Time)', desc: 'Assist in packaging, loading, and inventory.', price: '450.00' }
     };
 
     category.addEventListener('change', () => {
@@ -189,7 +197,7 @@
         priceInput.value = examples[c].price;
       }
 
-      if (c === 'Jobs') {
+      if (c === '💼Jobs') {
         priceLabel.textContent = 'Salary (USD)';
         locationContainer.classList.remove('hidden');
         applyFormContainer.classList.remove('hidden');
@@ -198,6 +206,7 @@
         locationContainer.classList.add('hidden');
         applyFormContainer.classList.add('hidden');
       }
+
       updateConvertedPrice();
     });
 
@@ -267,4 +276,4 @@
     });
   </script>
 </body>
-</html>
+  </html>
