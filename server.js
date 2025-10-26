@@ -4,6 +4,7 @@
    - Auto-category buyer detection
    - Jobs → only job subscribers
    - Products → only product subscribers
+   - Webhook verification
    - “View All Categories” footer with tracking link
 */
 
@@ -20,6 +21,9 @@ const app = express();
 app.use(bodyParser.json({ limit: "10mb" }));
 app.use(express.static("public"));
 
+// ----------------------------
+// Env variables
+// ----------------------------
 const PORT = process.env.PORT || 10000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const STORE_NAME = process.env.STORE_NAME || "Quick Market";
@@ -34,24 +38,27 @@ const SMTP_PORT = process.env.SMTP_PORT;
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const WEBHOOK_VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN;
 
+// ----------------------------
+// Data files
+// ----------------------------
 const DATA_DIR = path.resolve("./data");
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+
 const PRODUCTS_FILE = path.join(DATA_DIR, "products.json");
 const BUYERS_FILE = path.join(DATA_DIR, "buyers.json");
 const ORDERS_FILE = path.join(DATA_DIR, "buyers-orders.json");
 
-// Initialize files
 for (const file of [PRODUCTS_FILE, BUYERS_FILE, ORDERS_FILE]) {
   if (!fs.existsSync(file)) fs.writeFileSync(file, JSON.stringify([], null, 2));
 }
 
-// Utility to read/write JSON safely
 const readJSON = (f) => JSON.parse(fs.readFileSync(f, "utf8"));
 const writeJSON = (f, d) => fs.writeFileSync(f, JSON.stringify(d, null, 2));
 
 // ----------------------------
-// 🛍 ADMIN — Add New Product/Job
+// 🛍 ADMIN — Add Product/Job
 // ----------------------------
 app.post("/api/add-product", async (req, res) => {
   const { password, title, desc, price, category, site, payment, applyForm, images = [] } = req.body;
@@ -71,9 +78,7 @@ app.post("/api/add-product", async (req, res) => {
 // ----------------------------
 // 📦 STORE — Get Products
 // ----------------------------
-app.get("/api/products", (req, res) => {
-  res.json(readJSON(PRODUCTS_FILE));
-});
+app.get("/api/products", (req, res) => res.json(readJSON(PRODUCTS_FILE)));
 
 // ----------------------------
 // 🧠 BUYER CATEGORY TRACKING
@@ -83,10 +88,11 @@ app.post("/api/update-buyer", (req, res) => {
   if (!phone || !category) return res.json({ error: "Missing info" });
 
   const buyers = readJSON(BUYERS_FILE);
-  let buyer = buyers.find((b) => b.phone === phone);
+  const buyer = buyers.find((b) => b.phone === phone);
   if (buyer) buyer.category = category;
   else buyers.push({ name, phone, category });
   writeJSON(BUYERS_FILE, buyers);
+
   res.json({ success: true });
 });
 
@@ -104,10 +110,7 @@ async function sendCategoryAlert(product) {
       ? `💼 *${STORE_NAME} - Job Alert!*\n\n📌 *${product.title}*\n${product.desc}\n\n🌍 Location: ${product.location || "—"}\n💰 Salary: $${product.price}\n🔗 Apply: ${product.applyForm || product.site}\n\n🟢 View More Jobs: ${BASE_URL}/store.html`
       : `🛍 *${STORE_NAME} - New Product Alert!*\n\n🧾 *${product.title}*\n${product.desc}\n💰 Price: $${product.price}\n🛒 Buy Now: ${product.payment || product.site}\n\n📂 Category: ${product.category}\n\n🟢 View All Categories: ${BASE_URL}/store.html`;
 
-  for (const b of targets) {
-    await sendWhatsApp(b.phone, text);
-  }
-
+  for (const b of targets) await sendWhatsApp(b.phone, text);
   sendTelegram(text);
   sendEmail(ADMIN_EMAIL, `${STORE_NAME} — New ${product.category}`, text);
 }
@@ -119,19 +122,10 @@ async function sendWhatsApp(to, msg) {
   try {
     await fetch(`https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to,
-        text: { body: msg },
-      }),
+      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ messaging_product: "whatsapp", to, text: { body: msg } }),
     });
-  } catch (err) {
-    console.log("WhatsApp send error:", err.message);
-  }
+  } catch (err) { console.log("WhatsApp send error:", err.message); }
 }
 
 // ----------------------------
@@ -144,9 +138,7 @@ async function sendTelegram(msg) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: msg }),
     });
-  } catch (err) {
-    console.log("Telegram send error:", err.message);
-  }
+  } catch (err) { console.log("Telegram send error:", err.message); }
 }
 
 // ----------------------------
@@ -168,7 +160,8 @@ async function sendEmail(to, subject, html) {
 }
 
 // ----------------------------
-// ✅ Buy Product (Delivery)
+// ✅ Buy Product
+// ----------------------------
 app.post("/api/buy", (req, res) => {
   const { productId, name, phone, address, type, category } = req.body;
   if (!productId || !phone) return res.json({ error: "Missing info" });
@@ -182,7 +175,7 @@ app.post("/api/buy", (req, res) => {
 
   // Update buyer category
   const buyers = readJSON(BUYERS_FILE);
-  let buyer = buyers.find((b) => b.phone === phone);
+  const buyer = buyers.find((b) => b.phone === phone);
   if (buyer) buyer.category = category;
   else buyers.push({ name, phone, category });
   writeJSON(BUYERS_FILE, buyers);
@@ -192,15 +185,36 @@ app.post("/api/buy", (req, res) => {
 
 // ----------------------------
 // 📦 Track Order
+// ----------------------------
 app.get("/api/tracking/:id", (req, res) => {
   const orders = readJSON(ORDERS_FILE);
-  const order = orders.find(o => o.trackingId === req.params.id);
+  const order = orders.find((o) => o.trackingId === req.params.id);
   if (!order) return res.status(404).json({ error: "Not found" });
 
-  res.json({
-    status: order.status,
-    expectedDelivery: order.expectedDelivery || "Within 3–5 business days"
-  });
+  res.json({ status: order.status, expectedDelivery: order.expectedDelivery || "Within 3–5 business days" });
+});
+
+// ----------------------------
+// 🔗 Webhook Verification
+// ----------------------------
+app.get("/webhook", (req, res) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  if (mode && token) {
+    if (mode === "subscribe" && token === WEBHOOK_VERIFY_TOKEN) {
+      console.log("WEBHOOK_VERIFIED ✅");
+      return res.status(200).send(challenge);
+    } else return res.sendStatus(403);
+  } else return res.sendStatus(400);
+});
+
+app.post("/webhook", (req, res) => {
+  const body = req.body;
+  console.log("Webhook received:", body);
+  // handle messages/events here
+  res.sendStatus(200);
 });
 
 // ----------------------------
