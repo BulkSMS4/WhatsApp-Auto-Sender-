@@ -3,117 +3,163 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Dashboard</title>
+  <title>🛍️ Quick Market Admin</title>
   <style>
     body {
-      background: #121212;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      padding: 20px;
+      background: #e5ddd5;
+      font-family: "Poppins", sans-serif;
+      color: #222;
+      margin: 0;
+      padding: 0;
     }
-    h1 {
+
+    header {
+      background: #075e54;
+      color: white;
+      padding: 15px;
       text-align: center;
-      color: #00e676;
-      margin-bottom: 20px;
+      font-size: 1.5em;
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
+
+    main {
+      max-width: 600px;
+      background: #fff;
+      margin: 20px auto;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
     label {
       display: block;
       margin-top: 10px;
-      font-weight: bold;
+      font-weight: 600;
+      color: #075e54;
     }
+
     input, select, textarea {
       width: 100%;
       padding: 10px;
-      border-radius: 6px;
-      border: none;
+      border-radius: 10px;
+      border: 1px solid #ccc;
       margin-top: 5px;
-      background: #1f1f1f;
-      color: #fff;
+      background: #fdfdfd;
+      font-size: 14px;
+      box-sizing: border-box;
     }
+
+    textarea { resize: vertical; }
+
     button {
-      background: #00e676;
+      background: #25d366;
       border: none;
-      padding: 12px 20px;
-      border-radius: 6px;
-      color: #111;
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      color: #fff;
       font-weight: bold;
+      font-size: 16px;
       margin-top: 15px;
       cursor: pointer;
       transition: 0.3s;
     }
+
     button:hover {
-      background: #00c853;
+      background: #1ebe5c;
     }
+
     .hidden { display: none; }
+
     #conversionBox {
+      background: #dcf8c6;
       margin-top: 15px;
-      background: #1b1b1b;
-      padding: 10px;
-      border-radius: 6px;
+      border-radius: 10px;
+      padding: 10px 15px;
+      color: #075e54;
       font-size: 15px;
+    }
+
+    input[type="file"] {
+      border: 1px dashed #25d366;
+      background: #f8fff8;
+      padding: 8px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 15px;
+      color: #555;
+      font-size: 13px;
     }
   </style>
 </head>
 <body>
-  <h1>🧾 Admin Dashboard</h1>
+  <header>🧾 Quick Market Admin</header>
+  <main>
+    <form id="productForm">
+      <label>Category</label>
+      <select id="category" required>
+        <option value="">Select Category</option>
+        <option>Electronics</option>
+        <option>Fashion</option>
+        <option>Home</option>
+        <option>Accessories</option>
+        <option>Foods</option>
+        <option>Rings</option>
+        <option>Toys</option>
+        <option>Cars</option>
+        <option>Trucks</option>
+        <option>Jobs</option>
+      </select>
 
-  <form id="productForm">
-    <label>Category</label>
-    <select id="category" required>
-      <option value="">Select Category</option>
-      <option>Electronics</option>
-      <option>Fashion</option>
-      <option>Home</option>
-      <option>Accessories</option>
-      <option>Foods</option>
-      <option>Rings</option>
-      <option>Toys</option>
-      <option>Cars</option>
-      <option>Trucks</option>
-      <option>Jobs</option>
-    </select>
+      <label>Title</label>
+      <input type="text" id="title" required placeholder="e.g., Samsung 55&quot; Smart TV" />
 
-    <label>Title</label>
-    <input type="text" id="title" required placeholder="e.g., Samsung 55&quot; Smart TV">
+      <label>Description</label>
+      <textarea id="desc" rows="3" required placeholder="Short product or job description..."></textarea>
 
-    <label>Description</label>
-    <textarea id="desc" rows="3" required placeholder="Short product or job description here..."></textarea>
+      <div id="locationContainer" class="hidden">
+        <label>Job Location</label>
+        <input type="text" id="location" placeholder="e.g. Accra, Ghana">
+      </div>
 
-    <div id="locationContainer" class="hidden">
-      <label>Job Location</label>
-      <input type="text" id="location" placeholder="e.g. Accra, Ghana">
+      <label id="priceLabel">Price (USD)</label>
+      <input type="number" id="price" placeholder="e.g. 49.99" required>
+
+      <div id="applyFormContainer" class="hidden">
+        <label>Custom Apply Form (e.g. Google Form, Jotform)</label>
+        <input type="url" id="applyForm" placeholder="https://forms.gle/..." />
+      </div>
+
+      <div class="hidden">
+        <label>Website Link</label>
+        <input type="url" id="site" placeholder="https://example.com" />
+        <label>Payment Link</label>
+        <input type="url" id="payment" placeholder="https://example.com/pay" />
+      </div>
+
+      <label>Upload up to 20 Images</label>
+      <input type="file" id="images" multiple accept="image/*">
+
+      <label>Bulk Numbers</label>
+      <textarea id="bulkNumbers" rows="3" placeholder="+233..., +234..., +144..."></textarea>
+
+      <button type="submit">Send</button>
+    </form>
+
+    <div id="conversionBox">
+      🌍 <span id="country">Detecting country...</span><br>
+      💱 <span id="currency">Currency: </span><br>
+      💰 <span id="convertedPrice">Converted price will appear here.</span>
     </div>
+  </main>
 
-    <label id="priceLabel">Price (USD)</label>
-    <input type="number" id="price" placeholder="e.g. 49.99" required>
-
-    <label>Website Link</label>
-    <input type="url" id="site" placeholder="https://example.com/product">
-
-    <div id="paymentContainer">
-      <label>Payment Link</label>
-      <input type="url" id="payment" placeholder="https://example.com/pay" />
-    </div>
-
-    <div id="applyContainer" class="hidden">
-      <label>Custom Apply Form Link</label>
-      <input type="url" id="applyForm" placeholder="https://example.com/apply-form" />
-    </div>
-
-    <label>Upload up to 20 Images</label>
-    <input type="file" id="images" multiple accept="image/*">
-
-    <label>Bulk Numbers</label>
-    <textarea id="bulkNumbers" rows="3" placeholder="+233..., +234..., +144..."></textarea>
-
-    <button type="submit">Send</button>
-  </form>
-
-  <div id="conversionBox">
-    🌍 <span id="country">Detecting country...</span><br>
-    💱 <span id="currency">Currency: </span><br>
-    💰 <span id="convertedPrice">Converted price will appear here.</span>
-  </div>
+  <footer>💚 Powered by Quick Market</footer>
 
   <script>
     const category = document.getElementById('category');
@@ -122,85 +168,17 @@
     const priceLabel = document.getElementById('priceLabel');
     const priceInput = document.getElementById('price');
     const siteInput = document.getElementById('site');
-    const paymentContainer = document.getElementById('paymentContainer');
     const paymentInput = document.getElementById('payment');
-    const applyContainer = document.getElementById('applyContainer');
-    const applyFormInput = document.getElementById('applyForm');
     const locationContainer = document.getElementById('locationContainer');
+    const applyFormContainer = document.getElementById('applyFormContainer');
+    const applyFormInput = document.getElementById('applyForm');
     const convertedPrice = document.getElementById('convertedPrice');
     let detectedCurrency = "USD", exchangeRate = 1;
 
     const examples = {
-      Electronics: {
-        title: 'Samsung 55" QLED Smart TV - Model Q80T',
-        desc: '55" 4K UHD Smart TV, HDMI x3, USB x2, 1yr warranty.',
-        price: '899.00',
-        site: 'https://mystore.com/samsung-q80t',
-        payment: 'https://pay.example.com/pay/tv-q80t'
-      },
-      Fashion: {
-        title: "Men's Leather Jacket - Black",
-        desc: 'Genuine leather, available in all sizes (S-XXL).',
-        price: '129.99',
-        site: 'https://mystore.com/leather-jacket',
-        payment: 'https://pay.example.com/pay/jacket'
-      },
-      Home: {
-        title: 'Deluxe Blender 1500W',
-        desc: '2L jar, 3 speed settings — perfect for smoothies!',
-        price: '59.99',
-        site: 'https://mystore.com/blender',
-        payment: 'https://pay.example.com/pay/blender'
-      },
-      Accessories: {
-        title: 'Wireless Earbuds X200',
-        desc: 'Noise cancelling, 24h battery, charging case.',
-        price: '39.99',
-        site: 'https://mystore.com/earbuds',
-        payment: 'https://pay.example.com/pay/earbuds'
-      },
-      Foods: {
-        title: 'Jollof Rice (1kg)',
-        desc: 'Home-cooked, fresh ingredients, delivery available.',
-        price: '6.50',
-        site: 'https://mystore.com/jollof',
-        payment: 'https://pay.example.com/pay/jollof'
-      },
-      Rings: {
-        title: '14K Gold Engagement Ring',
-        desc: '14K gold, sizes 6-9, includes certificate.',
-        price: '249.00',
-        site: 'https://mystore.com/14k-ring',
-        payment: 'https://pay.example.com/pay/14k-ring'
-      },
-      Toys: {
-        title: 'Remote Control Car - 4WD',
-        desc: 'Ages 6+, rechargeable battery included.',
-        price: '29.99',
-        site: 'https://mystore.com/rc-car',
-        payment: 'https://pay.example.com/pay/rc-car'
-      },
-      Cars: {
-        title: 'Toyota Corolla 2018 - 50,000km',
-        desc: 'Well maintained, single owner, full service history.',
-        price: '8500.00',
-        site: 'https://mystore.com/toyota-corolla-2018',
-        payment: 'https://pay.example.com/pay/car123'
-      },
-      Trucks: {
-        title: 'Isuzu NKR 2015 - Diesel',
-        desc: '3-ton capacity, excellent condition, new tyres.',
-        price: '12000.00',
-        site: 'https://mystore.com/isuzu-nkr-2015',
-        payment: 'https://pay.example.com/pay/truck123'
-      },
-      Jobs: {
-        title: 'Warehouse Assistant (Full-Time)',
-        desc: 'Assist in packaging, loading, and inventory.',
-        price: '450.00',
-        site: 'https://mystore.com/jobs/warehouse-assistant',
-        applyForm: 'https://mystore.com/apply/warehouse'
-      }
+      Electronics: { title: 'Samsung 55" QLED Smart TV', desc: '55" 4K UHD Smart TV, HDMI x3, USB x2.', price: '899.00' },
+      Fashion: { title: "Men's Leather Jacket", desc: 'Genuine leather, all sizes (S–XXL).', price: '129.99' },
+      Jobs: { title: 'Warehouse Assistant (Full-Time)', desc: 'Assist in packaging, loading, and inventory.', price: '450.00' }
     };
 
     category.addEventListener('change', () => {
@@ -209,23 +187,17 @@
         titleInput.value = examples[c].title;
         descInput.value = examples[c].desc;
         priceInput.value = examples[c].price;
-        siteInput.value = examples[c].site;
-        if (examples[c].payment) paymentInput.value = examples[c].payment;
-        if (examples[c].applyForm) applyFormInput.value = examples[c].applyForm;
       }
 
       if (c === 'Jobs') {
         priceLabel.textContent = 'Salary (USD)';
         locationContainer.classList.remove('hidden');
-        paymentContainer.classList.add('hidden');
-        applyContainer.classList.remove('hidden');
+        applyFormContainer.classList.remove('hidden');
       } else {
         priceLabel.textContent = 'Price (USD)';
         locationContainer.classList.add('hidden');
-        paymentContainer.classList.remove('hidden');
-        applyContainer.classList.add('hidden');
+        applyFormContainer.classList.add('hidden');
       }
-
       updateConvertedPrice();
     });
 
@@ -244,8 +216,8 @@
 
     async function getExchangeRate() {
       try {
-        const res = await fetch(`https://api.exchangerate.host/latest?base=USD`);
-        const data = await res.json();
+        const response = await fetch(`https://api.exchangerate.host/latest?base=USD`);
+        const data = await response.json();
         exchangeRate = data.rates[detectedCurrency] || 1;
         updateConvertedPrice();
       } catch {
@@ -256,7 +228,7 @@
     function updateConvertedPrice() {
       const usdValue = parseFloat(priceInput.value);
       if (!usdValue || isNaN(usdValue)) {
-        convertedPrice.textContent = 'Enter a valid USD price above.';
+        convertedPrice.textContent = 'Enter a valid USD price.';
         return;
       }
       const localAmount = (usdValue * exchangeRate).toFixed(2);
@@ -266,11 +238,33 @@
     priceInput.addEventListener('input', updateConvertedPrice);
     detectCountryCurrency();
 
-    document.getElementById('productForm').addEventListener('submit', (e) => {
+    document.getElementById('productForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      alert('✅ Product/Job details saved successfully.');
-      // Here you’ll connect to backend (server.js)
+      const data = {
+        category: category.value,
+        title: titleInput.value,
+        desc: descInput.value,
+        price: priceInput.value,
+        location: document.getElementById('location').value || "",
+        site: siteInput.value,
+        payment: paymentInput.value,
+        applyForm: applyFormInput.value,
+        bulkNumbers: document.getElementById('bulkNumbers').value
+      };
+
+      const res = await fetch('/api/add-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      const result = await res.json();
+      if (result.success) {
+        alert('✅ Successfully added and alerts sent!');
+      } else {
+        alert('❌ Error: ' + (result.error || 'Failed to save.'));
+      }
     });
   </script>
 </body>
-</html>
+        </html>
