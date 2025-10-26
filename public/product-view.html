@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Product View</title>
+  <style>
+    :root{--accent:#25D366;--bg:#fff}
+    body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:#111}
+    .wrap{max-width:900px;margin:16px auto;padding:12px}
+    .card{background:#fff;padding:16px;border-radius:10px;border:1px solid #eee}
+    img {max-width:100%;border-radius:8px}
+    .btn{background:var(--accent);color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer}
+    .small{color:#666}
+    .modal{position:fixed;left:0;top:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.6)}
+    .modal .panel{background:#fff;padding:14px;border-radius:8px;max-width:600px;width:92%}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" id="productCard">
+      <h2 id="pTitle">Loading...</h2>
+      <div id="pImgs"></div>
+      <p id="pDesc" class="small"></p>
+      <p><strong>Price:</strong> <span id="pPrice"></span> <span id="conv"></span></p>
+      <div style="display:flex;gap:8px">
+        <button id="buyBtn" class="btn">Buy</button>
+        <a id="siteLink" class="small" href="#" target="_blank" style="align-self:center;margin-left:8px">Open product site</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quantity / Delivery modals reused mirror admin flow -->
+  <div id="qtyModal" class="modal"><div class="panel"><h3>Quantity</h3><input id="qty" type="number" min="1" value="1"><div style="display:flex;gap:8px;margin-top:8px"><button id="qtyOk" class="btn">Next</button><button id="qtyCancel" class="btn" style="background:#ddd;color:#111">Cancel</button></div></div></div>
+
+  <div id="deliveryModal" class="modal"><div class="panel">
+    <h3>Delivery</h3>
+    <label>Name</label><input id="name"><label>Phone</label><input id="phone"><label>Address</label><textarea id="address"></textarea>
+    <div style="display:flex;gap:8px;margin-top:8px"><button id="placeOrder" class="btn">Place Order</button><button id="delCancel" class="btn" style="background:#ddd;color:#111">Cancel</button></div>
+    <div id="orderMsg" style="margin-top:8px;color:#333"></div>
+  </div></div>
+
+  <script>
+    const id = (location.pathname.split('/').pop());
+    const pTitle = document.getElementById('pTitle'), pImgs = document.getElementById('pImgs'), pDesc = document.getElementById('pDesc'), pPrice = document.getElementById('pPrice'), conv = document.getElementById('conv'), siteLink = document.getElementById('siteLink');
+
+    let product = null;
+    async function load() {
+      try {
+        const res = await fetch('/api/product/'+id);
+        if (!res.ok) throw new Error('Not found');
+        product = await res.json();
+        pTitle.textContent = product.title || '';
+        pDesc.textContent = product.desc || '';
+        pPrice.textContent = (product.price ? ('$'+product.price) : 'N/A');
+        siteLink.href = product.siteLink || '#';
+        pImgs.innerHTML = '';
+        (product.images||[]).forEach(u => { const i=document.createElement('img'); i.src=u; i.style.marginBottom='8px'; pImgs.appendChild(i); });
+        // post visit
+        await fetch('/api/visit/'+id,{method:'POST'});
+        // currency conversion (client)
+        detectAndConvert(product.price || 0);
+      } catch (e) { pTitle.textContent='Product not found'; console.error(e); }
+    }
+
+    async function detectAndConvert(usd) {
+      try {
+        const r = await fetch('https://ipapi.co/json/');
+        const info = await r.json();
+        const currency = info.currency || 'USD';
+        const rr = await fetch('https://api.exchangerate.host/latest?base=USD');
+        const data = await rr.json();
+        const rate = data.rates[currency] || 1;
+        conv.innerText = `≈ ${(usd * rate).toFixed(2)} ${currency}`;
+      } catch (e) { conv.innerText = ''; }
+    }
+
+    // buy flow
+    document.getElementById('buyBtn').addEventListener('click', ()=> document.getElementById('qtyModal').style.display='flex');
+    document.getElementById('qtyCancel').addEventListener('click', ()=> document.getElementById('qtyModal').style.display='none');
+    document.getElementById('qtyOk').addEventListener('click', ()=> { document.getElementById('qtyModal').style.display='none'; document.getElementById('deliveryModal').style.display='flex'; });
+
+    document.getElementById('delCancel').addEventListener('click', ()=> document.getElementById('deliveryModal').style.display='none');
+
+    document.getElementById('placeOrder').addEventListener('click', async ()=>{
+      const name = document.getElementById('name').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const address = document.getElementById('address').value.trim();
+      const quantity = Number(document.getElementById('qty').value || 1);
+      if (!name || !phone || !address) return alert('Complete delivery details');
+      try {
+        const res = await fetch('/api/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,phone,address,productId:id,quantity})});
+        const j = await res.json();
+        if (j && j.success) {
+          document.getElementById('orderMsg').textContent='Order placed. Admin will contact you.';
+          // optionally show payment (admin-only handled in admin)
+          setTimeout(()=> document.getElementById('deliveryModal').style.display='none',1500);
+        } else {
+          document.getElementById('orderMsg').textContent='Order failed';
+        }
+      } catch (e) { console.error(e); document.getElementById('orderMsg').textContent='Order failed'; }
+    });
+
+    load();
+  </script>
+</body>
+</html>
