@@ -1,10 +1,1 @@
-[{
-  "jobs": [
-    { "name": "Ama", "phone": "+233501234567" },
-    { "name": "Kwame", "phone": "+233209876543" }
-  ],
-  "products": [
-    { "name": "Esi", "phone": "+233559991122" },
-    { "name": "Kojo", "phone": "+233598882233" }
-  ]
-}]
+{ "buyers": [] }
