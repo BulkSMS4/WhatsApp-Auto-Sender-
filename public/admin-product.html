@@ -1,0 +1,330 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Admin — Products / Jobs</title>
+  <style>
+    :root{--accent:#25D366;--bg:#0f1720;--panel:#071016;--muted:#97a5ad}
+    body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:#fff}
+    header{background:var(--accent);color:#002b14;padding:14px;font-weight:700;text-align:center}
+    .wrap{max-width:1100px;margin:18px auto;padding:16px}
+    .card{background:var(--panel);padding:14px;border-radius:12px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.03)}
+    label{display:block;margin-top:8px;font-size:14px}
+    input,select,textarea,button{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#071016;color:#fff}
+    .row{display:flex;gap:12px}
+    .col{flex:1}
+    .small{color:var(--muted);font-size:13px}
+    .products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:12px}
+    .prod{background:#071216;padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.02)}
+    .prod img{width:100%;height:140px;object-fit:cover;border-radius:6px}
+    .btn{background:var(--accent);color:#002b14;border:none;padding:10px;border-radius:8px;cursor:pointer}
+    .btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#fff}
+    .filelist{font-size:13px;color:var(--muted);margin-top:6px}
+    .modal{position:fixed;left:0;top:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:999}
+    .modal .panel{background:#fff;color:#111;border-radius:10px;padding:16px;max-width:900px;width:94%;max-height:90vh;overflow:auto}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03)}
+  </style>
+</head>
+<body>
+  <header>📦 ChatSender Admin — Products & Jobs</header>
+  <div class="wrap">
+
+    <div class="card">
+      <h3>Add Product / Job</h3>
+      <div class="small">Choose category — fields auto-fill with examples. Upload up to 20 images. Payment link hidden (admin-only).</div>
+
+      <label>Category</label>
+      <select id="category">
+        <option>Electronics</option><option>Fashion</option><option>Home</option>
+        <option>Accessories</option><option>Foods</option><option>Rings</option>
+        <option>Toys</option><option>Cars</option><option>Trucks</option><option>Jobs</option>
+      </select>
+
+      <label>Title</label>
+      <input id="title" placeholder="Example: Samsung 55&quot; QLED">
+
+      <label>Description</label>
+      <textarea id="desc" placeholder="Short description"></textarea>
+
+      <div id="jobFields" style="display:none">
+        <label>Job Location</label>
+        <input id="jobLocation" placeholder="Example: Accra, Ghana">
+      </div>
+
+      <label id="priceLabel">Price (USD)</label>
+      <input id="price" type="number" step="0.01" placeholder="e.g. 49.99">
+
+      <label>Product Site Link (visible to customers)</label>
+      <input id="site" placeholder="https://example.com/item">
+
+      <label>Custom Payment Link (hidden, admin can open inside dashboard)</label>
+      <input id="payment" placeholder="https://payment.example.com/pay/abc123">
+
+      <label>Upload Images (up to 20)</label>
+      <input id="images" type="file" accept="image/*" multiple>
+      <div class="filelist" id="fileList">No files chosen</div>
+
+      <label>Bulk Numbers (optional - comma/newline separated)</label>
+      <textarea id="bulkNumbers" placeholder="233501234567,233599999999"></textarea>
+
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <input id="adminPass" placeholder="Admin password (required for saving)">
+        <button id="saveBtn" class="btn">Save & Publish</button>
+      </div>
+      <div id="saveResult" class="small" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card">
+      <h3>Products / Jobs</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="margin:0">Filter</label>
+        <select id="filterCategory" style="width:200px"><option>All</option></select>
+        <button id="refreshBtn" class="btn secondary" style="width:110px">Refresh</button>
+      </div>
+      <div id="productsGrid" class="products-grid"></div>
+    </div>
+
+    <div class="card">
+      <h3>Send Bulk Now</h3>
+      <div class="small">Immediate send to the listed numbers. Use placeholders: <code>{product}</code>, <code>{price}</code>, <code>{link}</code></div>
+      <label>Numbers</label>
+      <textarea id="sendNumbers" rows="3" placeholder="233501234567"></textarea>
+      <label>Message</label>
+      <textarea id="sendMessage" rows="3">Check out {product} for {price} — {link}</textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="sendPass" placeholder="Admin password">
+        <button id="sendBulkBtn" class="btn">Send</button>
+      </div>
+      <pre id="sendResult" class="small" style="white-space:pre-wrap;max-height:160px;overflow:auto"></pre>
+    </div>
+
+  </div>
+
+  <!-- Quantity Modal -->
+  <div id="qtyModal" class="modal">
+    <div class="panel">
+      <h3>Choose Quantity</h3>
+      <label>Quantity</label>
+      <input id="orderQty" type="number" min="1" value="1">
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button id="qtyNext" class="btn">Next</button>
+        <button id="qtyCancel" class="btn secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delivery Modal -->
+  <div id="deliveryModal" class="modal">
+    <div class="panel">
+      <h3>Delivery Details</h3>
+      <label>Full name</label><input id="custName" placeholder="John Doe">
+      <label>Phone (include country code)</label><input id="custPhone" placeholder="233501234567">
+      <label>Address</label><textarea id="custAddress" placeholder="Delivery address"></textarea>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button id="placeOrder" class="btn">Place Order</button>
+        <button id="cancelDelivery" class="btn secondary">Cancel</button>
+      </div>
+      <div id="orderStatus" class="small" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <!-- Payment Modal (iframe) -->
+  <div id="paymentModal" class="modal">
+    <div class="panel">
+      <h3>Payment (Hidden link) <small style="font-weight:400">Admin must provide password to open</small></h3>
+      <iframe id="paymentFrame" style="width:100%;height:560px;border:0;border-radius:8px"></iframe>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button id="closePayment" class="btn secondary">Close</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const examples = {
+    Electronics:{title:'Samsung 55" QLED',desc:'55\" 4K QLED Smart TV',price:'899.00',site:'https://example.com/tv',payment:'https://pay.example.com/tv'},
+    Fashion:{title:"Men's Leather Jacket",desc:'Genuine leather, sizes S-XXL',price:'129.99',site:'https://example.com/jacket',payment:'https://pay.example.com/jacket'},
+    Home:{title:'Deluxe Blender',desc:'1500W blender, 2L jar',price:'59.99',site:'https://example.com/blender',payment:'https://pay.example.com/blender'},
+    Accessories:{title:'Wireless Earbuds',desc:'Noise cancelling earbud',price:'39.99',site:'https://example.com/earbuds',payment:'https://pay.example.com/earbuds'},
+    Foods:{title:'Jollof Rice (1kg)',desc:'Fresh, home-cooked',price:'6.50',site:'https://example.com/jollof',payment:'https://pay.example.com/jollof'},
+    Rings:{title:'14K Gold Ring',desc:'14K gold engagement ring',price:'249.00',site:'https://example.com/ring',payment:'https://pay.example.com/ring'},
+    Toys:{title:'RC Car 4WD',desc:'Battery included',price:'29.99',site:'https://example.com/rc',payment:'https://pay.example.com/rc'},
+    Cars:{title:'Toyota Corolla 2018',desc:'50,000km, single owner',price:'8500.00',site:'https://example.com/car',payment:'https://pay.example.com/car'},
+    Trucks:{title:'Isuzu NKR 2015',desc:'3-ton, diesel',price:'12000.00',site:'https://example.com/truck',payment:'https://pay.example.com/truck'},
+    Jobs:{title:'Warehouse Assistant (Full-Time)',desc:'Packaging, loading, inventory',price:'450.00',site:'https://example.com/job',payment:'https://pay.example.com/apply'}
+  };
+
+  const $ = id => document.getElementById(id);
+  const category = $('category'), title = $('title'), desc = $('desc'), price = $('price'),
+        site = $('site'), payment = $('payment'), images = $('images'), fileList = $('fileList'),
+        jobFields = $('jobFields'), jobLocation = $('jobLocation'), adminPass = $('adminPass');
+
+  // populate filter
+  function populateFilter(list){
+    const set = new Set(['All']);
+    list.forEach(p => set.add(p.category || 'Other'));
+    const sel = $('filterCategory'); sel.innerHTML='';
+    Array.from(set).forEach(s => { const o=document.createElement('option'); o.value=s;o.textContent=s; sel.appendChild(o);});
+  }
+
+  category.addEventListener('change', ()=> {
+    const c = category.value;
+    if (examples[c]) {
+      title.value = examples[c].title;
+      desc.value = examples[c].desc;
+      price.value = examples[c].price;
+      site.value = examples[c].site;
+      payment.value = examples[c].payment;
+    }
+    if (c==='Jobs') jobFields.style.display='block'; else jobFields.style.display='none';
+  });
+
+  images.addEventListener('change', ()=> {
+    const names = Array.from(images.files).slice(0,20).map(f=>f.name);
+    fileList.textContent = names.length ? names.join(', ') : 'No files chosen';
+  });
+
+  // Save product
+  $('saveBtn').addEventListener('click', async ()=>{
+    const pass = adminPass.value.trim();
+    if (!pass) return alert('Enter admin password');
+    const fd = new FormData();
+    fd.append('password', pass);
+    fd.append('category', category.value || 'Other');
+    fd.append('title', title.value || '');
+    fd.append('desc', desc.value || '');
+    fd.append('price', price.value || '');
+    fd.append('siteLink', site.value || '');
+    fd.append('paymentLink', payment.value || '');
+    fd.append('bulkNumbers', $('bulkNumbers').value || '');
+    for (let i=0;i<images.files.length && i<20;i++) fd.append('images', images.files[i]);
+    $('saveResult').textContent = 'Uploading...';
+    try {
+      const res = await fetch('/api/addProduct',{method:'POST',body:fd});
+      const j = await res.json();
+      if (j && j.success) {
+        $('saveResult').textContent = 'Product/Job saved successfully. Public URL: ' + j.publicUrl;
+        loadProducts();
+      } else {
+        $('saveResult').textContent = 'Save failed: ' + (j && j.error ? j.error : 'unknown');
+      }
+    } catch (e) {
+      console.error(e); $('saveResult').textContent = 'Save failed';
+    }
+  });
+
+  // Load products
+  async function loadProducts(){
+    try {
+      const res = await fetch('/api/products');
+      const list = await res.json();
+      renderProducts(list||[]);
+      populateFilter(list||[]);
+    } catch (e){ console.error(e); }
+  }
+
+  function renderProducts(list){
+    const grid = $('productsGrid'); grid.innerHTML='';
+    const filter = $('filterCategory').value || 'All';
+    list.forEach(p=>{
+      if (filter !== 'All' && p.category !== filter) return;
+      const div = document.createElement('div'); div.className='prod';
+      const img = (p.images && p.images.length)?p.images[0]:'/placeholder.png';
+      div.innerHTML = `<img src="${img}"><div><strong>${p.title||p.name}</strong></div><div class="small">${(p.desc||'').slice(0,120)}</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn" onclick="startBuy('${p.id}')">Buy</button>
+          <button class="btn secondary" onclick="openPublic('${p.id}')">Site</button>
+        </div>
+        <div class="small" style="margin-top:8px">Price: ${p.price||'N/A'} — Visits: ${p.visits||0}</div>`;
+      grid.appendChild(div);
+    });
+  }
+
+  window.openPublic = async function(id){
+    // open public product view in new tab (customer-facing)
+    try {
+      const prod = await fetch('/api/product/'+id).then(r=>r.json());
+      const url = `/view/${encodeURIComponent(prod.category||'Other')}/${id}`;
+      window.open(url,'_blank');
+    } catch (e){ alert('Unable to open view'); }
+  };
+
+  // BUY flow
+  let currentProduct = null;
+  window.startBuy = async function(id){
+    try {
+      const p = await fetch('/api/product/'+id).then(r=>r.json());
+      currentProduct = p;
+      $('orderQty').value = 1;
+      $('qtyModal').style.display = 'flex';
+    } catch (e){ alert('Product not found'); }
+  };
+
+  $('qtyCancel').addEventListener('click', ()=> $('qtyModal').style.display='none');
+  $('qtyNext').addEventListener('click', ()=> {
+    $('qtyModal').style.display='none';
+    $('deliveryModal').style.display='flex';
+  });
+
+  $('cancelDelivery').addEventListener('click', ()=> { $('deliveryModal').style.display='none'; $('orderStatus').textContent=''; });
+  $('placeOrder').addEventListener('click', async ()=> {
+    const name = $('custName').value.trim(); const phone = $('custPhone').value.trim(); const addr = $('custAddress').value.trim();
+    const qty = Number($('orderQty').value||1);
+    if (!name||!phone||!addr) return alert('Complete delivery details');
+    $('orderStatus').textContent='Placing order...';
+    try {
+      const res = await fetch('/api/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,phone,address:addr,productId:currentProduct.id,quantity:qty})});
+      const j = await res.json();
+      if (j && j.success) {
+        $('orderStatus').textContent='Order placed ✓';
+        // ask admin password to open payment iframe (keep link hidden)
+        const adminPassword = prompt('Enter admin password to open payment iframe (admin-only)');
+        if (!adminPassword) { alert('Payment not opened'); return; }
+        const payRes = await fetch('/api/admin/getPaymentLink/'+currentProduct.id+'?password='+encodeURIComponent(adminPassword));
+        const payJson = await payRes.json();
+        if (payJson && payJson.success && payJson.paymentLink) {
+          $('paymentFrame').src = payJson.paymentLink;
+          $('paymentModal').style.display = 'flex';
+        } else {
+          alert('Payment link unavailable or wrong password');
+        }
+      } else {
+        $('orderStatus').textContent='Order failed';
+      }
+    } catch (e) { console.error(e); $('orderStatus').textContent='Order failed'; }
+  });
+
+  $('closePayment').addEventListener('click', ()=> { $('paymentFrame').src=''; $('paymentModal').style.display='none'; });
+
+  // Bulk send UI (immediate)
+  $('sendBulkBtn').addEventListener('click', async ()=>{
+    const nums = $('sendNumbers').value.split(/[\s,;]+/).map(x=>x.trim()).filter(Boolean);
+    const msg = $('sendMessage').value.trim(); const pass = $('sendPass').value.trim();
+    if (!nums.length || !msg) return alert('Numbers and message required');
+    if (!pass) return alert('Admin password required');
+    $('sendResult').textContent = 'Sending...';
+    try {
+      const res = await fetch('/api/send-bulk',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({numbers:nums,message:msg,password:pass})});
+      const j = await res.json();
+      if (j && j.success) {
+        const ok = j.results.filter(r=>r.ok).length;
+        const fail = j.results.length - ok;
+        let out = `Success: ${ok}, Failed: ${fail}\n\n`;
+        j.results.forEach(r=> { if (!r.ok) out += `${r.to}: ${r.error||JSON.stringify(r.raw)}\n`; });
+        $('sendResult').textContent = out;
+      } else {
+        $('sendResult').textContent = 'Send failed: ' + (j && j.error ? j.error : 'unknown');
+      }
+    } catch (e){ console.error(e); $('sendResult').textContent = 'Send failed'; }
+  });
+
+  // refresh/filter hooks
+  $('refreshBtn').addEventListener('click', loadProducts);
+  $('filterCategory').addEventListener('change', loadProducts);
+
+  // initial load
+  loadProducts();
+</script>
+</body>
+</html>
