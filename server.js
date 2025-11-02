@@ -118,11 +118,24 @@ async function sendCategoryAlert(product) {
 // ----------------------------
 // 💬 WhatsApp Send
 // ----------------------------
-await fetch(`https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`, {
-  method: "POST",
-  headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
-  body: JSON.stringify({ messaging_product: "whatsapp", to, text: { body: msg } }),
-});
+async function sendWhatsApp(to, msg) {
+  try {
+    await fetch(`https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`, {
+      method: "POST",
+      headers: { 
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        text: { body: msg }
+      }),
+    });
+  } catch (err) {
+    console.log("WhatsApp send error:", err.message);
+  }
+}
 
 // ----------------------------
 // 📩 Telegram Send
