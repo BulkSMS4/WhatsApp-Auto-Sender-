@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Automated WhatsApp message sender dashboard (no Paystack)",
   "main": "server.js",
-  "type": "module",
   "scripts": {
     "start": "node server.js"
   },
