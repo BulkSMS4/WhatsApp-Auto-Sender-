@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🛍️ Quick Market Dashboard</title>
+  <style>
+    body {
+      background: #e5ddd5;
+      font-family: "Poppins", sans-serif;
+      color: #222;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #075e54;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-size: 1.5em;
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    main {
+      max-width: 900px;
+      margin: 20px auto;
+      background: #fff;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .product {
+      border-bottom: 1px solid #ddd;
+      padding: 15px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .product img {
+      width: 100px;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 10px;
+    }
+    .product-info {
+      flex: 1;
+      margin-left: 15px;
+    }
+    .product-info h3 {
+      margin: 0;
+      color: #075e54;
+    }
+    .product-info p {
+      margin: 5px 0;
+    }
+    .buy-btn {
+      background: #25d366;
+      border: none;
+      color: #fff;
+      padding: 10px 15px;
+      border-radius: 10px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .buy-btn:hover {
+      background: #1ebe5c;
+    }
+
+    /* Modal */
+    #buyModal.hidden { display: none; }
+    #buyModal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    #buyModalContent {
+      background: #fff;
+      border-radius: 15px;
+      width: 90%;
+      max-width: 400px;
+      padding: 20px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+      animation: popIn 0.3s ease;
+    }
+    @keyframes popIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    #buyModal h2 {
+      text-align: center;
+      color: #075e54;
+    }
+    #buyModal input {
+      width: 100%;
+      padding: 8px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    #buyModal button {
+      background: #25d366;
+      border: none;
+      color: white;
+      padding: 10px;
+      border-radius: 8px;
+      width: 100%;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    #buyModal button:hover { background: #1ebe5c; }
+  </style>
+</head>
+<body>
+  <header>🛍️ Quick Market Dashboard</header>
+  <main>
+    <h2>Available Products</h2>
+
+    <!-- Example Products -->
+    <div class="product">
+      <img src="https://via.placeholder.com/100" alt="TV">
+      <div class="product-info">
+        <h3>Samsung 55" Smart TV</h3>
+        <p>Price: $899</p>
+      </div>
+      <button class="buy-btn" data-price="899" data-payment="https://yourpaymentlink.com/tv">Buy</button>
+    </div>
+
+    <div class="product">
+      <img src="https://via.placeholder.com/100" alt="Jacket">
+      <div class="product-info">
+        <h3>Men's Leather Jacket</h3>
+        <p>Price: $129.99</p>
+      </div>
+      <button class="buy-btn" data-price="129.99" data-payment="https://yourpaymentlink.com/jacket">Buy</button>
+    </div>
+
+    <div class="product">
+      <img src="https://via.placeholder.com/100" alt="Chair">
+      <div class="product-info">
+        <h3>Ergonomic Office Chair</h3>
+        <p>Price: $199</p>
+      </div>
+      <button class="buy-btn" data-price="199" data-payment="https://yourpaymentlink.com/chair">Buy</button>
+    </div>
+
+    <div class="product">
+      <img src="https://via.placeholder.com/100" alt="Ring">
+      <div class="product-info">
+        <h3>Gold Wedding Ring</h3>
+        <p>Price: $299</p>
+      </div>
+      <button class="buy-btn" data-price="299" data-payment="https://yourpaymentlink.com/ring">Buy</button>
+    </div>
+
+  </main>
+
+  <!-- Delivery + Payment Modal -->
+  <div id="buyModal" class="hidden">
+    <div id="buyModalContent">
+      <h2>🚚 Delivery Details</h2>
+      <form id="deliveryForm">
+        <input type="text" id="dname" required placeholder="Full Name">
+        <input type="text" id="daddress" required placeholder="Delivery Address">
+        <input type="text" id="dphone" required placeholder="Phone Number">
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin:10px 0;">
+          <button type="button" id="minusBtn" style="width:30%;">➖</button>
+          <span id="quantity" style="font-size:18px; font-weight:bold;">1</span>
+          <button type="button" id="plusBtn" style="width:30%;">➕</button>
+        </div>
+
+        <p id="totalPrice" style="text-align:center; font-weight:bold;">Total: $0.00</p>
+        <button type="submit">Continue to Payment 💳</button>
+      </form>
+
+      <div id="paymentFrameContainer" class="hidden">
+        <h3 style="text-align:center;">💰 Complete Payment</h3>
+        <iframe id="paymentFrame" style="width:100%; height:400px; border:none; border-radius:10px;"></iframe>
+        <button id="closePayment">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const buyButtons = document.querySelectorAll(".buy-btn");
+    const buyModal = document.getElementById("buyModal");
+    const deliveryForm = document.getElementById("deliveryForm");
+    const paymentFrameContainer = document.getElementById("paymentFrameContainer");
+    const paymentFrame = document.getElementById("paymentFrame");
+    const closePayment = document.getElementById("closePayment");
+    const totalPriceEl = document.getElementById("totalPrice");
+    const quantityEl = document.getElementById("quantity");
+    const minusBtn = document.getElementById("minusBtn");
+    const plusBtn = document.getElementById("plusBtn");
+
+    let currentPrice = 0;
+    let currentPaymentURL = "";
+
+    buyButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        currentPrice = parseFloat(btn.dataset.price);
+        currentPaymentURL = btn.dataset.payment;
+        quantityEl.textContent = 1;
+        totalPriceEl.textContent = `Total: $${currentPrice.toFixed(2)}`;
+        paymentFrameContainer.classList.add("hidden");
+        deliveryForm.classList.remove("hidden");
+        buyModal.classList.remove("hidden");
+      });
+    });
+
+    minusBtn.onclick = () => {
+      let q = parseInt(quantityEl.textContent);
+      if (q > 1) {
+        q--;
+        quantityEl.textContent = q;
+        totalPriceEl.textContent = `Total: $${(currentPrice * q).toFixed(2)}`;
+      }
+    };
+    plusBtn.onclick = () => {
+      let q = parseInt(quantityEl.textContent);
+      q++;
+      quantityEl.textContent = q;
+      totalPriceEl.textContent = `Total: $${(currentPrice * q).toFixed(2)}`;
+    };
+
+    deliveryForm.addEventListener("submit", e => {
+      e.preventDefault();
+      deliveryForm.classList.add("hidden");
+      paymentFrameContainer.classList.remove("hidden");
+      paymentFrame.src = currentPaymentURL;
+    });
+
+    closePayment.onclick = () => {
+      buyModal.classList.add("hidden");
+      paymentFrame.src = "";
+    };
+
+    buyModal.addEventListener("click", e => {
+      if (e.target === buyModal) buyModal.classList.add("hidden");
+    });
+  </script>
+</body>
+</html>
