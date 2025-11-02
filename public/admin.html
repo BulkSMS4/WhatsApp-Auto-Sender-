@@ -261,11 +261,13 @@
         bulkNumbers: document.getElementById('bulkNumbers').value
       };
 
-      const res = await fetch('/api/add-product', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
+      data.password = "Forgetme"; // ✅ Add your admin password before sending
+
+const res = await fetch('/api/add-product', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(data)
+});
 
       const result = await res.json();
       if (result.success) {
