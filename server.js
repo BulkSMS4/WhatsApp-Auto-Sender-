@@ -8,13 +8,13 @@
    - “View All Categories” footer with tracking link
 */
 
-import express from "express";
-import fs from "fs";
-import path from "path";
-import dotenv from "dotenv";
-import bodyParser from "body-parser";
-import fetch from "node-fetch";
-import nodemailer from "nodemailer";
+const express = require("express");
+const fs = require("fs");
+const path = require("path");
+const dotenv = require("dotenv");
+const bodyParser = require("body-parser");
+const fetch = require("node-fetch");
+const nodemailer = require("nodemailer");
 
 dotenv.config();
 const app = express();
